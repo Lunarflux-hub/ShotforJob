@@ -1,0 +1,18 @@
+body {
+    background-color: #f7f7fb;
+}
+
+.card {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.06);
+}
+
+#generatedImage {
+    max-height: 480px;
+    object-fit: cover;
+}
+
+#statusBadge {
+    font-size: 0.9rem;
+}

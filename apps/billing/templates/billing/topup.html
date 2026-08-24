@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пополнение баланса</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f9f9f9; }
+        .package-btn { display: inline-block; margin: 10px 5px; padding: 12px 24px; border: none; border-radius: 8px; background: #4CAF50; color: white; cursor: pointer; font-size: 16px; }
+        .package-btn.active { background: #2E7D32; box-shadow: 0 0 0 2px #1B5E20; }
+        .package-btn:hover { opacity: 0.9; }
+        .custom-area { margin: 20px 0; }
+        .custom-area input { padding: 10px; font-size: 16px; width: 200px; border-radius: 4px; border: 1px solid #ccc; }
+        .credit-preview { font-weight: bold; color: #1a73e8; }
+        .pay-btn { padding: 14px 40px; font-size: 18px; background: #ff6f00; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .pay-btn:hover { background: #e65100; }
+        .message { margin-top: 20px; padding: 10px; border-radius: 4px; display: none; }
+        .message.success { background: #d4edda; color: #155724; display: block; }
+        .message.error { background: #f8d7da; color: #721c24; display: block; }
+        .loading { display: none; color: #555; margin: 10px 0; }
+        .loading.show { display: block; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Пополнить баланс</h1>
+
+    <div>
+        <h3>Выберите пакет:</h3>
+        <div id="packages"></div>
+    </div>
+
+    <div class="custom-area">
+        <h3>Или введите сумму (руб.):</h3>
+        <input type="number" id="customAmount" min="100" max="100000" step="1" placeholder="Сумма">
+        <span id="creditPreview" class="credit-preview"></span>
+        <br><small>От 100 до 100 000 ₽</small>
+    </div>
+
+    <button id="payBtn" class="pay-btn">Оплатить</button>
+
+    <div id="loading" class="loading">Обработка запроса...</div>
+    <div id="message" class="message"></div>
+
+    <script>
+        let config = null;
+        let selectedPackageId = null;
+        let currentAmount = null;
+        let currentCredits = 0;
+
+        // Загружаем конфигурацию с бэкенда
+async function loadConfig() {
+    try {
+        const resp = await fetch('/pay/api/config/', {
+            credentials: 'include'   // <-- отправляем куки сессии
+        });
+        if (!resp.ok) {
+            const text = await resp.text();
+            console.error('Ответ сервера (первые 200 символов):', text.substring(0, 200));
+            throw new Error(`HTTP ${resp.status}: ${text.substring(0, 100)}`);
+        }
+        const text = await resp.text();
+        console.log('Получен текст ответа:', text.substring(0, 100));
+        const data = JSON.parse(text);
+        config = data;
+        renderPackages();
+        updateCustomPreview();
+    } catch (e) {
+        console.error('Ошибка загрузки конфигурации:', e);
+        showMessage('Ошибка загрузки: ' + e.message, 'error');
+    }
+}
+
+        function renderPackages() {
+            const container = document.getElementById('packages');
+            container.innerHTML = '';
+            config.packages.forEach(pkg => {
+                const btn = document.createElement('button');
+                btn.className = 'package-btn';
+                btn.dataset.id = pkg.id;
+                btn.dataset.credits = pkg.credits;
+                btn.dataset.price = pkg.price;
+                btn.textContent = `${pkg.title} – ${pkg.price} ₽ (${pkg.credits} кредитов)`;
+                btn.addEventListener('click', () => {
+                    // Снимаем активность со всех
+                    document.querySelectorAll('.package-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedPackageId = pkg.id;
+                    currentAmount = parseFloat(pkg.price);
+                    currentCredits = pkg.credits;
+                    document.getElementById('customAmount').value = '';
+                    document.getElementById('creditPreview').textContent = `≈ ${pkg.credits} кредитов`;
+                });
+                container.appendChild(btn);
+            });
+        }
+
+        function updateCustomPreview() {
+            const input = document.getElementById('customAmount');
+            const preview = document.getElementById('creditPreview');
+            const val = parseFloat(input.value);
+            if (input.value && !isNaN(val) && val >= config.custom.min && val <= config.custom.max) {
+                // Для превью используем ту же формулу, что и на бэкенде
+                const credits = calculateCredits(val, config.custom.formula_params);
+                preview.textContent = `≈ ${credits} кредитов`;
+                // Снимаем выделение с пакетов
+                document.querySelectorAll('.package-btn').forEach(b => b.classList.remove('active'));
+                selectedPackageId = null;
+                currentAmount = val;
+                currentCredits = credits;
+            } else {
+                preview.textContent = '';
+                currentAmount = null;
+                currentCredits = 0;
+            }
+        }
+
+        function calculateCredits(amount, params) {
+            const baseRate = params.base_rate;
+            let rate = baseRate;
+            for (const tier of params.tiers) {
+                if (amount >= tier.threshold) {
+                    rate = baseRate * tier.multiplier;
+                    break;
+                }
+            }
+            return Math.floor(amount / rate);
+        }
+
+        // Обработчик кнопки "Оплатить"
+        document.getElementById('payBtn').addEventListener('click', async () => {
+            const messageEl = document.getElementById('message');
+            const loadingEl = document.getElementById('loading');
+            messageEl.className = 'message';
+            messageEl.style.display = 'none';
+
+            // Определяем, что отправляем: package_id или amount
+            let payload = {};
+            if (selectedPackageId) {
+                payload.package_id = selectedPackageId;
+            } else if (currentAmount && currentAmount >= config.custom.min && currentAmount <= config.custom.max) {
+                payload.amount = currentAmount;
+            } else {
+                showMessage('Выберите пакет или введите корректную сумму (100–100 000 ₽)', 'error');
+                return;
+            }
+
+            loadingEl.classList.add('show');
+            try {
+                const resp = await fetch('/pay/api/topup/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',   // <-- добавить эту строку
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(data.error || 'Ошибка создания платежа');
+                }
+
+                // Автоматически отправляем форму на Robokassa
+                const form = document.createElement('form');
+                form.method = data.method;
+                form.action = data.action_url;
+                for (const [key, value] of Object.entries(data.fields)) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+                document.body.appendChild(form);
+                form.submit();
+
+            } catch (e) {
+                showMessage('Ошибка: ' + e.message, 'error');
+            } finally {
+                loadingEl.classList.remove('show');
+            }
+        });
+
+        function showMessage(text, type) {
+            const el = document.getElementById('message');
+            el.textContent = text;
+            el.className = 'message ' + type;
+            el.style.display = 'block';
+        }
+
+        // Событие на ввод суммы
+        document.getElementById('customAmount').addEventListener('input', updateCustomPreview);
+
+        // Загрузка конфигурации при старте
+        loadConfig();
+    </script>
+</body>
+</html>

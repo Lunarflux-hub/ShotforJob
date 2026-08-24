@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Оплата прошла — ShotForJob{% endblock %}
+
+{% block extra_css %}
+<style>
+    .receipt-wrap {
+        max-width: 460px;
+        margin: 0 auto 80px auto;
+        padding: 20px 0 80px;
+        position: relative;
+    }
+
+    /* ===== состояния загрузки / ошибки ===== */
+    .receipt-status {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 48px 32px;
+        text-align: center;
+    }
+    .receipt-status .spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid #e2e2e2;
+        border-top-color: #0066FF;
+        border-radius: 50%;
+        margin: 0 auto 20px;
+        animation: receiptSpin 0.8s linear infinite;
+    }
+    @keyframes receiptSpin { to { transform: rotate(360deg); } }
+    .receipt-status h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .receipt-status p { opacity: 0.7; font-size: 14px; line-height: 1.5; }
+    .receipt-status .receipt-error-icon {
+        width: 56px; height: 56px; border-radius: 50%;
+        background: #ffe5e5; color: #e0332f;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 20px; font-size: 28px; font-weight: 700;
+    }
+    .receipt-retry-btn {
+        margin-top: 20px; display: inline-block;
+        background: #0066FF; color: #fff; border: none;
+        padding: 12px 28px; border-radius: 12px;
+        font-size: 15px; font-weight: 600; cursor: pointer;
+        text-decoration: none;
+    }
+
+    /* ===== карточка чека ===== */
+    .ticket {
+        position: relative;
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 16px 40px rgba(0,0,0,0.08);
+        opacity: 0;
+        transform: scale(0.95);
+        animation: ticketIn 0.4s ease forwards;
+    }
+    @keyframes ticketIn { to { opacity: 1; transform: scale(1); } }
+    .ticket::before, .ticket::after {
+        content: "";
+        position: absolute;
+        top: 50%; transform: translateY(-50%);
+        width: 32px; height: 32px; border-radius: 50%;
+        background: #efefef;
+    }
+    .ticket::before { left: -16px; }
+    .ticket::after { right: -16px; }
+
+    .ticket-head { padding: 32px 32px 0; text-align: center; }
+    .ticket-check {
+        width: 64px; height: 64px; border-radius: 50%;
+        background: rgba(0,102,255,0.1);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto;
+    }
+    .ticket-check svg { width: 32px; height: 32px; color: #0066FF; }
+    .ticket-head h1 { font-size: 22px; font-weight: 700; margin-top: 16px; }
+    .ticket-head p { opacity: 0.65; font-size: 14px; margin-top: 4px; }
+
+    .ticket-body { padding: 24px 32px 32px; }
+    .ticket-dash {
+        border-top: 2px dashed #e2e2e2;
+        margin: 20px 0;
+    }
+    .ticket-row { display: flex; justify-content: space-between; gap: 16px; text-align: left; }
+    .ticket-col-r { text-align: right; }
+    .ticket-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.55; margin-bottom: 4px; }
+    .ticket-value { font-weight: 600; font-size: 15px; }
+    .ticket-value.mono { font-family: monospace; }
+    .ticket-value.big { font-size: 18px; }
+
+    .ticket-method {
+        margin-top: 20px;
+        background: #f5f6f8;
+        border-radius: 14px;
+        padding: 14px 16px;
+        display: flex; align-items: center; gap: 12px;
+        text-align: left;
+    }
+    .ticket-method-badge {
+        width: 40px; height: 28px; border-radius: 6px;
+        background: #0066FF; color: #fff;
+        font-size: 11px; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+    }
+    .ticket-method .name { font-weight: 600; font-size: 14px; }
+    .ticket-method .sub { opacity: 0.6; font-size: 12px; font-family: monospace; }
+
+    .ticket-barcode { display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
+    .ticket-barcode svg { display: block; }
+    .ticket-barcode span {
+        font-size: 12px; letter-spacing: 0.3em; opacity: 0.6; margin-top: 8px;
+    }
+
+    .receipt-actions { display: flex; gap: 12px; margin-top: 24px; }
+    .receipt-actions a {
+        flex: 1; text-align: center; text-decoration: none;
+        padding: 14px 0; border-radius: 12px; font-weight: 600; font-size: 14px;
+    }
+    .receipt-actions .primary { background: #0066FF; color: #fff; }
+    .receipt-actions .secondary { background: #ffffff; color: #000; border: 1px solid #e2e2e2; }
+
+    /* ===== конфетти ===== */
+    .receipt-confetti {
+        position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+    }
+    .receipt-confetti i {
+        position: absolute; top: -10%; width: 8px; height: 14px;
+        animation-name: receiptFall;
+        animation-timing-function: linear;
+        animation-fill-mode: forwards;
+    }
+    @keyframes receiptFall {
+        0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+        100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="receipt-wrap">
+    <div id="receiptConfetti" class="receipt-confetti"></div>
+
+    <div id="receiptLoading" class="receipt-status">
+        <div class="spinner"></div>
+        <h2>Обрабатываем платёж</h2>
+        <p>Обычно это занимает несколько секунд. Не закрывайте страницу.</p>
+    </div>
+
+    <div id="receiptError" class="receipt-status" style="display:none;">
+        <div class="receipt-error-icon">!</div>
+        <h2>Не удалось найти платёж</h2>
+        <p id="receiptErrorText">Попробуйте открыть страницу платежей ещё раз или обратитесь в поддержку.</p>
+        <a class="receipt-retry-btn" href="/billing/history/">К истории платежей</a>
+    </div>
+
+    <div id="receiptTicket" class="ticket" style="display:none;">
+        <div class="ticket-head">
+            <div class="ticket-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <h1>Спасибо!</h1>
+            <p>Оплата прошла успешно, генерации зачислены</p>
+        </div>
+
+        <div class="ticket-body">
+            <div class="ticket-dash"></div>
+
+            <div class="ticket-row">
+                <div>
+                    <div class="ticket-label">Номер платежа</div>
+                    <div class="ticket-value mono" id="rTicketId">—</div>
+                </div>
+                <div class="ticket-col-r">
+                    <div class="ticket-label">Сумма</div>
+                    <div class="ticket-value big" id="rAmount">—</div>
+                </div>
+            </div>
+
+            <div class="ticket-row" style="margin-top:16px;">
+                <div>
+                    <div class="ticket-label">Дата и время</div>
+                    <div class="ticket-value" id="rDate">—</div>
+                </div>
+                <div class="ticket-col-r">
+                    <div class="ticket-label">Пакет</div>
+                    <div class="ticket-value" id="rGenerations">—</div>
+                </div>
+            </div>
+
+            <div class="ticket-method">
+                <div class="ticket-method-badge">RBK</div>
+                <div>
+                    <div class="name">Robokassa</div>
+                    <div class="sub" id="rMethodSub">чек отправлен на почту</div>
+                </div>
+            </div>
+
+            <div class="ticket-dash"></div>
+
+            <div class="ticket-barcode">
+                <svg id="rBarcode" width="250" height="70" viewBox="0 0 250 70"></svg>
+                <span id="rBarcodeValue"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="receipt-actions" id="receiptActions" style="display:none;">
+        <a class="secondary" href="/billing/history/">Все платежи</a>
+        <a class="primary" href="/workstation/">Продолжить</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/billing_success.js' %}"></script>
+{% endblock %}

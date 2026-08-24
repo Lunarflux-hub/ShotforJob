@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Оплата не прошла — ShotForJob{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fail-wrap { max-width: 460px; margin: 0 auto 80px; padding: 20px 0 80px; }
+    .fail-card { background: #fff; border-radius: 20px; padding: 48px 32px; text-align: center; }
+    .fail-icon {
+        width: 56px; height: 56px; border-radius: 50%;
+        background: #ffe5e5; color: #e0332f;
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 20px; font-size: 28px; font-weight: 700;
+    }
+    .fail-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .fail-card p { opacity: 0.7; font-size: 14px; line-height: 1.5; }
+    .fail-actions { display: flex; gap: 12px; margin-top: 24px; }
+    .fail-actions a { flex: 1; text-align: center; text-decoration: none; padding: 14px 0; border-radius: 12px; font-weight: 600; font-size: 14px; }
+    .fail-actions .primary { background: #0066FF; color: #fff; }
+    .fail-actions .secondary { background: #fff; color: #000; border: 1px solid #e2e2e2; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fail-wrap">
+    <div class="fail-card">
+        <div class="fail-icon">!</div>
+        <h1>Оплата не завершена</h1>
+        <p>Платёж был отменён или произошла ошибка. Деньги не списаны — попробуйте оплатить снова.</p>
+        <div class="fail-actions">
+            <a class="secondary" href="/billing/history/">История платежей</a>
+            <a class="primary" href="/payment/">Повторить оплату</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
