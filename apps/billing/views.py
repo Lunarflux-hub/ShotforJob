@@ -6,7 +6,6 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
@@ -139,15 +138,19 @@ class BalanceView(APIView):
 
 
 @csrf_exempt
-@require_POST
 def robokassa_result(request):
-    """Server-to-server callback от Robokassa. Единственное место начисления генераций."""
-    data = request.POST
+    """Server-to-server callback от Robokassa. Единственное место начисления генераций.
+    Robokassa может слать GET или POST в зависимости от настройки в ЛК — принимаем оба."""
+    if request.method not in ("GET", "POST"):
+        return HttpResponseBadRequest("method not allowed")
+
+    data = request.GET if request.method == "GET" else request.POST
     out_sum = data.get("OutSum", "")
     inv_id = data.get("InvId", "")
     signature = data.get("SignatureValue", "")
+    receipt = data.get("Receipt", "")
 
-    if not verify_result_signature(out_sum, inv_id, signature):
+    if not verify_result_signature(out_sum, inv_id, signature, receipt):
         return HttpResponseBadRequest("bad sign")
 
     try:
@@ -184,14 +187,14 @@ def robokassa_result(request):
     return HttpResponse(f"OK{inv_id}")
 
 
-@require_GET
 def robokassa_success(request):
     """Редирект пользователя на фронт. НЕ начисляет генерации."""
-    inv_id = request.GET.get("InvId", "")
+    data = request.GET if request.method == "GET" else request.POST
+    inv_id = data.get("InvId", "")
     return redirect(f"{settings.FRONTEND_URL}/billing/success?invoice={inv_id}")
 
 
-@require_GET
 def robokassa_fail(request):
-    inv_id = request.GET.get("InvId", "")
+    data = request.GET if request.method == "GET" else request.POST
+    inv_id = data.get("InvId", "")
     return redirect(f"{settings.FRONTEND_URL}/billing/fail?invoice={inv_id}")

@@ -58,10 +58,12 @@ def build_payment_request(payment, description: str, email: str | None = None) -
     }
 
 
-def verify_result_signature(out_sum: str, inv_id: str, signature: str) -> bool:
-    expected = hashlib.md5(
-        f"{out_sum}:{inv_id}:{PASSWORD_2}".encode("utf-8")
-    ).hexdigest()
+def verify_result_signature(out_sum: str, inv_id: str, signature: str, receipt: str | None = None) -> bool:
+    parts = [out_sum, inv_id]
+    if receipt:
+        parts.append(receipt)
+    parts.append(PASSWORD_2)
+    expected = hashlib.md5(":".join(parts).encode("utf-8")).hexdigest()
     return expected.lower() == signature.lower()
 
 
