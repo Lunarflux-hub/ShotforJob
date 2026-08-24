@@ -237,9 +237,16 @@ FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:8000")
 
 # --- Robokassa (оплата пополнения баланса) ----------------------------------
 ROBOKASSA_MERCHANT_LOGIN = env("ROBOKASSA_MERCHANT_LOGIN", default="")
-ROBOKASSA_PASSWORD_1 = env("ROBOKASSA_PASSWORD_1", default="")
-ROBOKASSA_PASSWORD_2 = env("ROBOKASSA_PASSWORD_2", default="")
 ROBOKASSA_TEST_MODE = env.bool("ROBOKASSA_TEST_MODE", default=True)
+# В тестовом режиме (IsTest=1) Robokassa подписывает запросы отдельной парой
+# тестовых паролей из ЛК (раздел "Тестовая среда"), а не боевыми — поэтому
+# пароли выбираются в зависимости от режима.
+if ROBOKASSA_TEST_MODE:
+    ROBOKASSA_PASSWORD_1 = env("ROBOKASSA_TEST_PASSWORD_1", default="")
+    ROBOKASSA_PASSWORD_2 = env("ROBOKASSA_TEST_PASSWORD_2", default="")
+else:
+    ROBOKASSA_PASSWORD_1 = env("ROBOKASSA_PASSWORD_1", default="")
+    ROBOKASSA_PASSWORD_2 = env("ROBOKASSA_PASSWORD_2", default="")
 # Система налогообложения и ставка НДС для чеков
 ROBOKASSA_SNO = env("ROBOKASSA_SNO", default="usn_income")
 ROBOKASSA_TAX = env("ROBOKASSA_TAX", default="none")
