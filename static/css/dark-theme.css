@@ -211,7 +211,6 @@ html[data-theme="dark"], html[data-theme="dark"] body { color: #f2f2f2 !importan
 [data-theme="dark"] img[src$="exit-icon.png"],
 [data-theme="dark"] img[src$="folder-icon.png"],
 [data-theme="dark"] img[src$="forest-icon.png"],
-[data-theme="dark"] img[src$="google-icon.png"],
 [data-theme="dark"] img[src$="instagram-icon.png"],
 [data-theme="dark"] img[src$="office-icon.png"],
 [data-theme="dark"] img[src$="paperclip-icon.png"],
@@ -230,8 +229,7 @@ html[data-theme="dark"], html[data-theme="dark"] body { color: #f2f2f2 !importan
 [data-theme="dark"] img[src$="tiktok-icon.png"],
 [data-theme="dark"] img[src$="pinterest-icon.png"],
 [data-theme="dark"] img[src$="reddit-icon.png"],
-[data-theme="dark"] img[src$="link-icon.png"],
-[data-theme="dark"] img[src$="yandex-icon.png"] {
+[data-theme="dark"] img[src$="link-icon.png"] {
     filter: invert(1);
 }
 /* logo-icon(-around) и trash-icon цветные — не инвертируем */

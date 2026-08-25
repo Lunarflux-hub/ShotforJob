@@ -650,10 +650,10 @@
                     <li><a href="/">Главная</a></li>
                     <li><a href="/#pricing">Цены</a></li>
                     <li><a href="{% url 'workstation' %}" class="auth-required">Workstation</a></li>
-                    <li><a href="/#faq">Начнём!</a></li>
+                    <li><a href="/workstation/" class="auth-required">Начнём!</a></li>
                     <li><a href="/#faq">Вопросы</a></li>
                     <li><a href="{% url 'support' %}">Поддержка</a></li>
-                    <li><a href="{% url 'results' %}">Портфолио</a></li>
+                    <li><a href="{% url 'results' %}" class="auth-required">Портфолио</a></li>
                     <li><a href="{% url 'policy' %}">Политика</a></li>
                     <li><a href="#">Безопасность</a></li>
                 </ul>

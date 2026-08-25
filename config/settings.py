@@ -1,5 +1,7 @@
 """
 Настройки Django-проекта photostudio.
+ЭТО НАСТРОЙКИ ЛОКАЛЬНОГО САЙТА
+не должен попасть на сервер
 """
 import mimetypes
 from datetime import timedelta
