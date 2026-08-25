@@ -249,6 +249,8 @@ if ROBOKASSA_TEST_MODE:
 else:
     ROBOKASSA_PASSWORD_1 = env("ROBOKASSA_PASSWORD_1", default="")
     ROBOKASSA_PASSWORD_2 = env("ROBOKASSA_PASSWORD_2", default="")
+    ROBOKASSA_PASSWORD_3 = env("ROBOKASSA_PASSWORD_3", default="")
+
 # Система налогообложения и ставка НДС для чеков
 ROBOKASSA_SNO = env("ROBOKASSA_SNO", default="usn_income")
 ROBOKASSA_TAX = env("ROBOKASSA_TAX", default="none")
