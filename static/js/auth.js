@@ -331,11 +331,46 @@
         }
     }
 
+    function initMobileMenu() {
+        const toggle = document.getElementById("menuToggle");
+        const menu = document.querySelector(".header .menu");
+        if (!toggle || !menu) return;
+
+        function closeMenu() {
+            menu.classList.remove("open");
+            toggle.classList.remove("open");
+            toggle.setAttribute("aria-expanded", "false");
+        }
+
+        toggle.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isOpen = menu.classList.toggle("open");
+            toggle.classList.toggle("open", isOpen);
+            toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!menu.classList.contains("open")) return;
+            if (!menu.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        menu.querySelectorAll("a").forEach((link) => {
+            link.addEventListener("click", closeMenu);
+        });
+
+        window.addEventListener("resize", () => {
+            if (window.innerWidth > 768) closeMenu();
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         updateHeaderWidget();
         updateBalanceWidget();
         bindLoginForm();
         bindRegisterForm();
+        initMobileMenu();
 
         const yandexBtn = document.getElementById("yandexLoginBtn");
         if (yandexBtn) yandexBtn.addEventListener("click", startYandexLogin);

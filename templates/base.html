@@ -134,6 +134,33 @@
         }
         .menu ul li a:hover { opacity: 0.7; }
 
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            flex-shrink: 0;
+            order: 3;
+        }
+        .menu-toggle span {
+            display: block;
+            width: 20px;
+            height: 2px;
+            background: #000000;
+            border-radius: 2px;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .menu-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .menu-toggle.open span:nth-child(2) { opacity: 0; }
+        .menu-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
         .header-btn {
             position: relative;
             z-index: 1200;
@@ -468,20 +495,43 @@
             .footer-col.social-col { gap: 10px 16px; max-width: 320px; }
         }
         @media (max-width: 768px) {
-            body { padding: 100px 20px 0 20px; }
+            body { padding: 96px 20px 0 20px; }
             .header {
-                padding: 40px 20px 0 20px;
-                flex-direction: column;
+                padding: 20px 20px;
+                flex-direction: row;
+                flex-wrap: wrap;
                 align-items: center;
-                gap: 16px;
+                justify-content: space-between;
+                gap: 12px 16px;
             }
             .header-right {
                 flex-wrap: wrap;
-                justify-content: center;
-                gap: 16px;
+                justify-content: flex-end;
+                gap: 12px;
             }
-            .menu ul { gap: 14px; font-size: 14px; flex-wrap: wrap; justify-content: center; }
-            .menu ul li a { font-size: 14px; }
+            .menu-toggle { display: flex; }
+            .menu {
+                order: 10;
+                width: 100%;
+                display: none;
+            }
+            .menu.open {
+                display: block;
+                margin-top: 4px;
+            }
+            .menu ul {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 4px;
+                width: 100%;
+            }
+            .menu ul li a {
+                display: block;
+                padding: 12px 16px;
+                border-radius: 12px;
+                font-size: 16px;
+            }
+            .menu ul li a:hover, .menu ul li a:active { background: rgba(0, 0, 0, 0.05); }
             .header-btn { height: 44px; min-width: 44px; padding: 0 10px; }
             .header-btn img { width: 22px; height: 22px; }
             .auth-user-name { font-size: 13px; max-width: 100px; }
@@ -535,8 +585,8 @@
             }
         }
         @media (max-width: 480px) {
-            body { padding: 90px 12px 0 12px; }
-            .header { padding: 30px 12px 0 12px; }
+            body { padding: 80px 12px 0 12px; }
+            .header { padding: 16px 12px; }
             .logo img { height: 28px; }
             .logo span { font-size: 22px; }
             .menu ul { gap: 10px; font-size: 13px; }
@@ -589,6 +639,10 @@
                     <li><a href="{% url 'policy' %}">Политика</a></li>
                 </ul>
             </nav>
+
+            <button type="button" class="menu-toggle" id="menuToggle" aria-label="Открыть меню" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
 
             <a href="/payment/" class="balance-badge" id="balanceBadge" title="Пополнить баланс">
                 <span class="balance-badge-icon">
