@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>{% block title %}ShotForJob{% endblock %}</title>
     {% load static %}
 
@@ -160,6 +160,19 @@
         .menu-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
         .menu-toggle.open span:nth-child(2) { opacity: 0; }
         .menu-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+        .menu-theme-item { display: none; }
+        .menu-theme-btn {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            background: none;
+            border: none;
+            font-family: 'Vela Sans', sans-serif;
+            cursor: pointer;
+            color: #000000;
+            text-align: left;
+        }
 
         .header-btn {
             position: relative;
@@ -532,6 +545,11 @@
                 font-size: 16px;
             }
             .menu ul li a:hover, .menu ul li a:active { background: rgba(0, 0, 0, 0.05); }
+            .menu-theme-item { display: block; border-top: 1px solid rgba(0, 0, 0, 0.08); margin-top: 6px; padding-top: 6px; }
+            .menu-theme-btn { padding: 12px 16px; border-radius: 12px; font-size: 16px; }
+            .menu-theme-btn:hover, .menu-theme-btn:active { background: rgba(0, 0, 0, 0.05); }
+            .menu-theme-btn .dropdown-icon { width: 20px; height: 20px; margin-right: 12px; }
+            .header-right #themeToggle { display: none; }
             .header-btn { height: 44px; min-width: 44px; padding: 0 10px; }
             .header-btn img { width: 22px; height: 22px; }
             .auth-user-name { font-size: 13px; max-width: 100px; }
@@ -553,19 +571,21 @@
                 padding-left: 0px;
                 width: 100%;
                 flex: 0 0 100%;
+                text-align: center;
             }
-            .footer-col .footer-headline { white-space: normal; }
-            .footer-col .footer-description { max-width: 100%; width: 100%; }
+            .footer-col .footer-headline { white-space: normal; font-size: 17px; }
+            .footer-col .footer-description { display: none; }
             .footer-col:nth-child(2) ul {
                 max-width: 100%;
                 height: auto;
-                flex-direction: column;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
                 flex-wrap: nowrap;
-                gap: 0;
+                gap: 10px 16px;
             }
             .footer-col:nth-child(2) ul li {
                 flex: 0 0 auto;
-                margin-bottom: 8px;
+                margin-bottom: 0;
                 width: 100%;
             }
             .footer-col:nth-child(2) ul li a { font-size: 14px; }
@@ -637,6 +657,12 @@
                     <li><a href="{% url 'workstation' %}" class="auth-required">Workstation</a></li>
                     <li><a href="/#faq">Вопросы</a></li>
                     <li><a href="{% url 'policy' %}">Политика</a></li>
+                    <li class="menu-theme-item">
+                        <button type="button" class="menu-theme-btn" id="themeToggleMobile">
+                            <img src="{% static 'images/theme-icon.png' %}" alt="" class="dropdown-icon" />
+                            Тёмная/светлая тема
+                        </button>
+                    </li>
                 </ul>
             </nav>
 
@@ -783,7 +809,7 @@
             }
         });
 
-        document.getElementById('themeToggle')?.addEventListener('click', function() {
+        function toggleTheme() {
             var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             if (isDark) {
                 document.documentElement.removeAttribute('data-theme');
@@ -792,7 +818,9 @@
                 document.documentElement.setAttribute('data-theme', 'dark');
                 localStorage.setItem('theme', 'dark');
             }
-        });
+        }
+        document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
+        document.getElementById('themeToggleMobile')?.addEventListener('click', toggleTheme);
     </script>
 
     <script>

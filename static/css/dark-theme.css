@@ -16,6 +16,7 @@ html[data-theme="dark"], html[data-theme="dark"] body { color: #f2f2f2 !importan
 [data-theme="dark"] .balance-badge { background: #202020 !important; }
 [data-theme="dark"] .logo span { color: #f2f2f2 !important; }
 [data-theme="dark"] .menu ul li a { color: #f2f2f2 !important; }
+[data-theme="dark"] .menu-theme-btn { color: #f2f2f2 !important; }
 [data-theme="dark"] .header-btn { background: #202020 !important; }
 [data-theme="dark"] .header-btn:not(.menu-open):hover { background: #202020 !important; }
 [data-theme="dark"] .auth-user-name { color: #f2f2f2 !important; }
