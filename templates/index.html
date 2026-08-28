@@ -992,7 +992,15 @@
     }
 
     @media (max-width: 1024px) {
-        .hero-subtitle { font-size: 18px; max-width: 650px; }
+        .hero-subtitle {
+            font-size: 18px;
+            max-width: 650px;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .hero-subtitle br, .tariffs-subtitle br, .faq-subtitle br { display: none; }
         .hero-subtitle, .tariffs-subtitle, .faq-subtitle { text-wrap: balance; }
         .styles-section { gap: 40px; padding: 60px 0; }

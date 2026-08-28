@@ -17,6 +17,18 @@
     </script>
 
     <style>
+        :root {
+            --menu-panel-bg: rgba(241, 241, 241, 0.98);
+            --menu-panel-text: #000000;
+            --menu-panel-hover: rgba(0, 0, 0, 0.05);
+            --menu-panel-border: rgba(0, 0, 0, 0.08);
+        }
+        html[data-theme="dark"] {
+            --menu-panel-bg: rgba(20, 20, 20, 0.98);
+            --menu-panel-text: #f2f2f2;
+            --menu-panel-hover: rgba(255, 255, 255, 0.08);
+            --menu-panel-border: rgba(255, 255, 255, 0.08);
+        }
         @font-face {
             font-family: 'Vela Sans';
             src: url('{% static "fonts/VelaSans-Regular.otf" %}') format('opentype');
@@ -128,7 +140,7 @@
         }
         .menu ul li a {
             text-decoration: none;
-            color: #000000;
+            color: var(--menu-panel-text);
             transition: opacity 0.2s;
             font-size: 18px;
         }
@@ -170,7 +182,7 @@
             border: none;
             font-family: 'Vela Sans', sans-serif;
             cursor: pointer;
-            color: #000000;
+            color: var(--menu-panel-text);
             text-align: left;
         }
 
@@ -539,7 +551,7 @@
                 padding: 8px 20px 16px;
                 max-height: calc(100vh - 90px);
                 overflow-y: auto;
-                background: rgba(241, 241, 241, 0.98);
+                background: var(--menu-panel-bg);
                 backdrop-filter: blur(12px);
                 -webkit-backdrop-filter: blur(12px);
                 box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
@@ -558,10 +570,10 @@
                 border-radius: 12px;
                 font-size: 16px;
             }
-            .menu ul li a:hover, .menu ul li a:active { background: rgba(0, 0, 0, 0.05); }
-            .menu-theme-item { display: block; border-top: 1px solid rgba(0, 0, 0, 0.08); margin-top: 6px; padding-top: 6px; }
+            .menu ul li a:hover, .menu ul li a:active { background: var(--menu-panel-hover); }
+            .menu-theme-item { display: block; border-top: 1px solid var(--menu-panel-border); margin-top: 6px; padding-top: 6px; }
             .menu-theme-btn { padding: 12px 16px; border-radius: 12px; font-size: 16px; }
-            .menu-theme-btn:hover, .menu-theme-btn:active { background: rgba(0, 0, 0, 0.05); }
+            .menu-theme-btn:hover, .menu-theme-btn:active { background: var(--menu-panel-hover); }
             .menu-theme-btn .dropdown-icon { width: 20px; height: 20px; margin-right: 12px; }
             .header-right #themeToggle { display: none; }
             .header-btn { height: 44px; min-width: 44px; padding: 0 10px; }

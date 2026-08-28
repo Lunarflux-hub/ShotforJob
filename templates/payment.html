@@ -557,6 +557,13 @@
             .forEach((el) => el.classList.remove("selected"));
         cardEl.classList.add("selected");
         updatePayButton();
+
+        if (window.matchMedia("(max-width: 768px)").matches && payBtn) {
+            const header = document.querySelector(".header");
+            const headerHeight = header ? header.offsetHeight : 0;
+            const targetPosition = payBtn.getBoundingClientRect().top + window.pageYOffset - headerHeight - 16;
+            window.scrollTo({ top: targetPosition, behavior: "smooth" });
+        }
     }
 
     function updatePayButton() {

@@ -15,14 +15,8 @@ html[data-theme="dark"], html[data-theme="dark"] body { color: #f2f2f2 !importan
 [data-theme="dark"] .header { background: rgba(20, 20, 20, 0.85) !important; }
 [data-theme="dark"] .balance-badge { background: #202020 !important; }
 [data-theme="dark"] .logo span { color: #f2f2f2 !important; }
-[data-theme="dark"] .menu ul li a { color: #f2f2f2 !important; }
-[data-theme="dark"] .menu-theme-btn { color: #f2f2f2 !important; }
 [data-theme="dark"] .menu-toggle { background: #202020 !important; }
 [data-theme="dark"] .menu-toggle span { background: #f2f2f2 !important; }
-[data-theme="dark"] .menu.open { background: rgba(20, 20, 20, 0.98) !important; }
-[data-theme="dark"] .menu ul li a:hover, [data-theme="dark"] .menu ul li a:active { background: rgba(255, 255, 255, 0.08) !important; }
-[data-theme="dark"] .menu-theme-item { border-top-color: rgba(255, 255, 255, 0.08) !important; }
-[data-theme="dark"] .menu-theme-btn:hover, [data-theme="dark"] .menu-theme-btn:active { background: rgba(255, 255, 255, 0.08) !important; }
 [data-theme="dark"] .header-btn { background: #202020 !important; }
 [data-theme="dark"] .header-btn:not(.menu-open):hover { background: #202020 !important; }
 [data-theme="dark"] .auth-user-name { color: #f2f2f2 !important; }
