@@ -530,7 +530,21 @@
             }
             .menu.open {
                 display: block;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                width: 100%;
                 margin-top: 4px;
+                padding: 8px 20px 16px;
+                max-height: calc(100vh - 90px);
+                overflow-y: auto;
+                background: rgba(241, 241, 241, 0.98);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+                box-sizing: border-box;
+                z-index: 999;
             }
             .menu ul {
                 flex-direction: column;
@@ -722,11 +736,7 @@
                 <p class="footer-description">
                     Сделать идеальное фото на документы бывает очень трудно<br>
                     поездка к фотографу занимает много времени, но и денег<br>
-                    ShotForJob это отличное решение!<br>
-                    <br>
-                    Самозанятый: Моргунов Ростислав Максимович<br>
-                    ИНН: 616514104481<br>
-                    г. Ростов-на-дону
+                    ShotForJob это отличное решение!
                 </p>
             </div>
             <div class="footer-col">

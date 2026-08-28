@@ -545,6 +545,7 @@
         justify-content: center;
         z-index: 1000;
         padding: 16px;
+        overscroll-behavior: contain;
     }
     .cropper-modal-box {
         background: #ffffff;
@@ -1309,6 +1310,9 @@
             ? `Фото ${queueIndex + 1} из ${queue.length}`
             : "";
 
+        if (modal.classList.contains("d-none")) {
+            lockBodyScroll();
+        }
         modal.classList.remove("d-none");
         modal.dataset.currentId = id;
 
@@ -1374,12 +1378,31 @@
         if (cropper) cropper.rotateTo(parseFloat(rotateRange.value));
     });
 
+    let bodyScrollY = 0;
+    function lockBodyScroll() {
+        bodyScrollY = window.scrollY;
+        document.body.style.position = "fixed";
+        document.body.style.top = `-${bodyScrollY}px`;
+        document.body.style.left = "0";
+        document.body.style.right = "0";
+        document.body.style.width = "100%";
+    }
+    function unlockBodyScroll() {
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.width = "";
+        window.scrollTo(0, bodyScrollY);
+    }
+
     function closeCropper() {
         if (cropper) {
             cropper.destroy();
             cropper = null;
         }
         modal.classList.add("d-none");
+        unlockBodyScroll();
         queue = [];
         queueIndex = 0;
     }

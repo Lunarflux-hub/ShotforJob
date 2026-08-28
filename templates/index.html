@@ -360,7 +360,8 @@
         clip-path: inset(0 100% 0 0);
         transition: clip-path 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
-    .style-card:hover .image-wrapper .hover-img {
+    .style-card:hover .image-wrapper .hover-img,
+    .style-card.is-active .image-wrapper .hover-img {
         clip-path: inset(0 0% 0 0);
     }
 
@@ -383,10 +384,11 @@
         display: block;
     }
 
-    .style-card:hover .image-wrapper .logo-overlay {
+    .style-card:hover .image-wrapper .logo-overlay,
+    .style-card.is-active .image-wrapper .logo-overlay {
         animation: logo-spin 0.7s ease forwards;
     }
-    .style-card:not(:hover) .image-wrapper .logo-overlay {
+    .style-card:not(:hover):not(.is-active) .image-wrapper .logo-overlay {
         opacity: 0 !important;
         animation: none !important;
     }
@@ -991,6 +993,8 @@
 
     @media (max-width: 1024px) {
         .hero-subtitle { font-size: 18px; max-width: 650px; }
+        .hero-subtitle br, .tariffs-subtitle br, .faq-subtitle br { display: none; }
+        .hero-subtitle, .tariffs-subtitle, .faq-subtitle { text-wrap: balance; }
         .styles-section { gap: 40px; padding: 60px 0; }
         .styles-text h2 { font-size: 40px; }
         .styles-text .description { font-size: 17px; }
@@ -1023,11 +1027,11 @@
     @media (max-width: 768px) {
         .hero { min-height: auto; padding-bottom: 40px; }
         .hero-title { font-size: 32px; margin-top: 50px; letter-spacing: 0.08em; }
-        .hero-center-images { margin: 20px 0 0; padding: 0 10px; }
-        .photo-left, .photo-right { width: 130px; height: 130px; }
-        .photo-center { width: 130px; height: 169px; }
-        .photo-left { margin-right: -14px; }
-        .photo-right { margin-left: -14px; }
+        .hero-center-images { margin: 20px 0 0; padding: 0 8px; }
+        .photo-left, .photo-right { width: 195px; height: 195px; }
+        .photo-center { width: 195px; height: 254px; }
+        .photo-left { margin-right: -68px; }
+        .photo-right { margin-left: -68px; }
         .bottom-block {
             position: static;
             transform: none;
@@ -1114,11 +1118,11 @@
     }
     @media (max-width: 480px) {
         .hero-title { font-size: 24px; margin-top: 30px; }
-        .hero-center-images { margin: 16px 0 0; padding: 0 8px; }
-        .photo-left, .photo-right { width: 105px; height: 105px; }
-        .photo-center { width: 105px; height: 137px; }
-        .photo-left { margin-right: -12px; }
-        .photo-right { margin-left: -12px; }
+        .hero-center-images { margin: 16px 0 0; padding: 0 6px; }
+        .photo-left, .photo-right { width: 150px; height: 150px; }
+        .photo-center { width: 150px; height: 195px; }
+        .photo-left { margin-right: -55px; }
+        .photo-right { margin-left: -55px; }
         .hero-subtitle { font-size: 16px; max-width: 95%; line-height: 1.5; }
         .bottom-block { margin-top: 16px; }
         .btn { font-size: 16px; padding: 10px 24px; }
@@ -1517,5 +1521,20 @@
             parent.classList.toggle('active');
         });
     });
+
+    // ---------- Авто "hover" карточек стилей на мобильных ----------
+    if (window.matchMedia('(hover: none)').matches) {
+        var styleCards = document.querySelectorAll('.style-card');
+        if (styleCards.length && 'IntersectionObserver' in window) {
+            var cardObserver = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    entry.target.classList.toggle('is-active', entry.isIntersecting);
+                });
+            }, { threshold: 0.6 });
+            styleCards.forEach(function(card) {
+                cardObserver.observe(card);
+            });
+        }
+    }
 </script>
 {% endblock %}
