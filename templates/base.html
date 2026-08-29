@@ -53,8 +53,10 @@
             padding: 0;
             box-sizing: border-box;
         }
+        html {
+            overflow-x: hidden;
+        }
         html, body {
-            height: 100%;
             font-family: 'Vela Sans', sans-serif;
             color: #000000;
             background: #efefef;
@@ -63,8 +65,8 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            min-height: 100dvh;
             padding: 130px 148px 0 148px;
-            overflow-x: hidden;
             max-width: none;
             margin: 0;
         }
@@ -373,7 +375,7 @@
             background: rgba(241, 241, 241, 0.85);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            padding: 60px 148px 30px 148px;
+            padding: 60px 148px calc(30px + env(safe-area-inset-bottom)) 148px;
             border-top: 1px solid #e0e0e0;
             border-left: 1px solid #e0e0e0;
             border-right: 1px solid #e0e0e0;
@@ -581,7 +583,12 @@
             .auth-user-name { font-size: 13px; max-width: 100px; }
             .logo img { height: 32px; }
             .logo span { font-size: 26px; }
-            .dropdown-icon { width: 18px; height: 18px; margin-right: 10px; }
+            #authDropdown .dropdown-item {
+                justify-content: center;
+                padding: 10px 0;
+            }
+            #authDropdown .dropdown-label { display: none; }
+            #authDropdown .dropdown-icon { width: 18px; height: 18px; margin-right: 0; }
             .footer { padding-left: 20px; padding-right: 20px; }
             .footer-grid {
                 flex-direction: column;
@@ -711,21 +718,21 @@
                 </a>
                 <div class="dropdown-menu" id="authDropdown">
                     <span class="dropdown-highlight" id="authDropdownHighlight"></span>
-                    <a href="/workstation/" class="dropdown-item auth-required">
+                    <a href="/workstation/" class="dropdown-item auth-required" title="WorkStation">
                         <img src="{% static 'images/workstation-icon.png' %}" alt="" class="dropdown-icon" />
-                        WorkStation
+                        <span class="dropdown-label">WorkStation</span>
                     </a>
-                    <a href="/results/" class="dropdown-item">
+                    <a href="/results/" class="dropdown-item" title="Портфолио">
                         <img src="{% static 'images/gallery-icon.png' %}" alt="" class="dropdown-icon" />
-                        Портфолио
+                        <span class="dropdown-label">Портфолио</span>
                     </a>
-                    <a href="/payment/" class="dropdown-item">
+                    <a href="/payment/" class="dropdown-item" title="Оплата">
                         <img src="{% static 'images/wallet-icon.png' %}" alt="" class="dropdown-icon" />
-                        Оплата
+                        <span class="dropdown-label">Оплата</span>
                     </a>
-                    <button class="dropdown-item logout-btn" id="dropdownLogoutBtn">
+                    <button class="dropdown-item logout-btn" id="dropdownLogoutBtn" title="Выйти">
                         <img src="{% static 'images/exit-icon.png' %}" alt="" class="dropdown-icon" />
-                        Выйти
+                        <span class="dropdown-label">Выйти</span>
                     </button>
                 </div>
             </div>
