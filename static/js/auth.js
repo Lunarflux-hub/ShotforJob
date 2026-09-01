@@ -197,106 +197,6 @@
         if (confirm("Выйти из аккаунта?")) window.PhotoStudioAuth.logout();
     });
 
-    // ---------- Email/пароль: логин и регистрация (страница /login/) ----------
-    // ТЕСТОВЫЙ вход по email/паролю (email == логин), для интеграции с
-    // платёжкой. При откате — просто вернуть старый вариант этого блока.
-    async function loginWithPassword(email, password) {
-        const resp = await fetch(`${API_BASE}/auth/login/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-        });
-        if (!resp.ok) {
-            const err = await resp.json().catch(() => ({}));
-            const firstError = Object.values(err)[0];
-            throw new Error(
-                err.detail ||
-                    (Array.isArray(firstError) ? firstError[0] : null) ||
-                    "Неверный email или пароль"
-            );
-        }
-        const tokens = await resp.json();
-        // Обычный логин по паролю не отдаёт аватар — используем email
-        saveSession(tokens.access, tokens.refresh, { name: email, email });
-    }
-
-    async function registerAndLogin(email, password) {
-        const resp = await fetch(`${API_BASE}/auth/register/`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-        });
-        if (!resp.ok) {
-            const err = await resp.json().catch(() => ({}));
-            const firstError = Object.values(err)[0];
-            throw new Error(
-                (Array.isArray(firstError) ? firstError[0] : null) ||
-                    err.detail ||
-                    "Не удалось зарегистрироваться"
-            );
-        }
-        // /api/auth/register/ не возвращает JWT — логинимся сразу теми же данными
-        await loginWithPassword(email, password);
-    }
-
-    function bindLoginForm() {
-        const form = document.getElementById("loginForm");
-        if (!form) return;
-        const errorBox = document.getElementById("loginError");
-
-        form.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            errorBox.style.display = "none";
-            try {
-                await loginWithPassword(
-                    form.querySelector("[name=email]").value.trim(),
-                    form.querySelector("[name=password]").value
-                );
-                window.location.href = "/";
-            } catch (err) {
-                errorBox.textContent = err.message;
-                errorBox.style.display = "block";
-            }
-        });
-    }
-
-    function bindRegisterForm() {
-        const form = document.getElementById("registerForm");
-        if (!form) return;
-        const errorBox = document.getElementById("registerError");
-
-        form.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            errorBox.style.display = "none";
-            try {
-                await registerAndLogin(
-                    form.querySelector("[name=email]").value.trim(),
-                    form.querySelector("[name=password]").value
-                );
-                window.location.href = "/";
-            } catch (err) {
-                errorBox.textContent = err.message;
-                errorBox.style.display = "block";
-            }
-        });
-    }
-
-    function bindAuthToggle() {
-        const toggleBtn = document.getElementById("authToggleModeBtn");
-        const loginForm = document.getElementById("loginForm");
-        const registerForm = document.getElementById("registerForm");
-        if (!toggleBtn || !loginForm || !registerForm) return;
-
-        toggleBtn.addEventListener("click", () => {
-            const showingLogin = loginForm.style.display !== "none";
-            loginForm.style.display = showingLogin ? "none" : "flex";
-            registerForm.style.display = showingLogin ? "flex" : "none";
-            toggleBtn.textContent = showingLogin
-                ? "Уже есть аккаунт? Войти"
-                : "Нет аккаунта? Зарегистрироваться";
-        });
-    }
-
     // ---------- Google Identity Services (вызывается их скриптом напрямую) ----------
     window.handleGoogleLogin = async function (response) {
         try {
@@ -390,9 +290,6 @@
     document.addEventListener("DOMContentLoaded", () => {
         updateHeaderWidget();
         updateBalanceWidget();
-        bindLoginForm();
-        bindRegisterForm();
-        bindAuthToggle();
         initMobileMenu();
 
         const yandexBtn = document.getElementById("yandexLoginBtn");

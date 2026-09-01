@@ -780,32 +780,9 @@
         <div class="auth-wrap">
             <div class="auth-card">
                 <h1 class="auth-title">Вход в ShotForJob</h1>
-                <p class="auth-subtitle">Войдите по email и паролю или через Google / Яндекс ID</p>
+                <p class="auth-subtitle">Войдите через Google или Яндекс ID</p>
 
                 <div class="auth-error" id="loginError" style="display:none;"></div>
-
-                <!-- ТЕСТОВЫЙ вход по email/паролю (для интеграции с платёжкой) -->
-                <form id="loginForm" class="auth-form" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
-                    <input type="email" name="email" placeholder="Email" required
-                           style="padding:14px 16px; border-radius:12px; border:1px solid #ddd; font-family:'Vela Sans', sans-serif; font-size:16px;">
-                    <input type="password" name="password" placeholder="Пароль" required
-                           style="padding:14px 16px; border-radius:12px; border:1px solid #ddd; font-family:'Vela Sans', sans-serif; font-size:16px;">
-                    <button type="submit" class="auth-social-btn">Войти</button>
-                </form>
-
-                <form id="registerForm" class="auth-form" style="display:none; flex-direction:column; gap:12px; margin-bottom:16px;">
-                    <div class="auth-error" id="registerError" style="display:none;"></div>
-                    <input type="email" name="email" placeholder="Email" required
-                           style="padding:14px 16px; border-radius:12px; border:1px solid #ddd; font-family:'Vela Sans', sans-serif; font-size:16px;">
-                    <input type="password" name="password" placeholder="Пароль" required
-                           style="padding:14px 16px; border-radius:12px; border:1px solid #ddd; font-family:'Vela Sans', sans-serif; font-size:16px;">
-                    <button type="submit" class="auth-social-btn">Зарегистрироваться</button>
-                </form>
-
-                <button type="button" id="authToggleModeBtn"
-                        style="background:none; border:none; text-decoration:underline; cursor:pointer; font-family:'Vela Sans', sans-serif; font-size:14px; margin-bottom:16px;">
-                    Нет аккаунта? Зарегистрироваться
-                </button>
 
                 <div class="auth-social">
                     <div id="g_id_onload"
