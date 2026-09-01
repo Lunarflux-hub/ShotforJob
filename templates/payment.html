@@ -410,14 +410,14 @@
     </div>
 </div>
 
-<!-- Скрытая форма для Robokassa -->
-<form id="paymentRobokassaForm" method="POST" style="display:none;"></form>
+<!-- Скрытая форма для PayAnyWay -->
+<form id="paymentPayanywayForm" method="POST" style="display:none;"></form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 /**
- * Логика страницы /payment/ — покупка пакетов генераций через Robokassa.
+ * Логика страницы /payment/ — покупка пакетов генераций через PayAnyWay.
  * Используется точный дизайн карточек с лендинга, данные из API.
  * Цены отображаются без копеек.
  * Порядок карточек: Стартовый, Оптимальный (выделен), Профессиональный (выделен), Бизнес.
@@ -432,7 +432,7 @@
     const payBtn = document.getElementById("paymentPayBtn");
     const messageEl = document.getElementById("paymentMessage");
     const guestNoticeEl = document.getElementById("paymentGuestNotice");
-    const robokassaForm = document.getElementById("paymentRobokassaForm");
+    const payanywayForm = document.getElementById("paymentPayanywayForm");
     const balanceSummaryEl = document.getElementById("balanceSummary");
     const balanceSummaryCountEl = document.getElementById("balanceSummaryCount");
 
@@ -613,19 +613,19 @@
                 return;
             }
 
-            robokassaForm.action = data.action_url;
-            robokassaForm.method = data.method || "POST";
-            robokassaForm.innerHTML = "";
+            payanywayForm.action = data.action_url;
+            payanywayForm.method = data.method || "POST";
+            payanywayForm.innerHTML = "";
             Object.entries(data.fields).forEach(([key, value]) => {
                 const input = document.createElement("input");
                 input.type = "hidden";
                 input.name = key;
                 input.value = value;
-                robokassaForm.appendChild(input);
+                payanywayForm.appendChild(input);
             });
 
-            showMessage("Перенаправляем на страницу оплаты Robokassa…", "info");
-            robokassaForm.submit();
+            showMessage("Перенаправляем на страницу оплаты PayAnyWay…", "info");
+            payanywayForm.submit();
         } catch (e) {
             showMessage("Ошибка сети. Попробуйте ещё раз.", "error");
         } finally {

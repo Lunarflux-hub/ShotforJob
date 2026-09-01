@@ -27,7 +27,7 @@ class GenerationPackage(models.Model):
 
 
 class Payment(models.Model):
-    """Один счёт = один InvId в Robokassa."""
+    """Один счёт = один MNT_TRANSACTION_ID в PayAnyWay (Moneta.ru)."""
 
     class Status(models.TextChoices):
         PENDING = "pending", "Ожидает оплаты"
@@ -56,7 +56,7 @@ class Payment(models.Model):
     )
     is_test = models.BooleanField(default=False)
 
-    robokassa_operation_id = models.CharField(max_length=64, blank=True)
+    payanyway_operation_id = models.CharField(max_length=64, blank=True)  # MNT_OPERATION_ID
     raw_result_payload = models.JSONField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

@@ -27,7 +27,7 @@
    - `CSRF_TRUSTED_ORIGINS=https://shotforjob.ru,https://www.shotforjob.ru`
    - `CORS_ALLOW_ALL_ORIGINS=False` и `CORS_ALLOWED_ORIGINS=https://shotforjob.ru` (если фронт на другом домене)
    - `POSTGRES_PASSWORD` — надёжный пароль
-   - ключи Polza.ai, Yandex S3, SMTP, Robokassa — боевые, не тестовые
+   - ключи Polza.ai, Yandex S3, SMTP, PayAnyWay (MNT_ID и код проверки целостности) — боевые, не тестовые
 
 4. В `nginx/nginx.conf` замените `server_name _;` на ваш домен.
 

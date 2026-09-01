@@ -10,7 +10,7 @@ urlpatterns = [
     path("payments/", views.PaymentListView.as_view(), name="payment_list"),
     path("payments/<int:pk>/", views.PaymentDetailView.as_view(), name="payment_detail"),
     path("balance/", views.BalanceView.as_view(), name="balance"),
-    path("robokassa/result/", views.robokassa_result, name="robokassa_result"),
-    path("robokassa/success/", views.robokassa_success, name="robokassa_success"),
-    path("robokassa/fail/", views.robokassa_fail, name="robokassa_fail"),
+    path("payanyway/result/", views.payanyway_result, name="payanyway_result"),
+    path("payanyway/success/", views.payanyway_success, name="payanyway_success"),
+    path("payanyway/fail/", views.payanyway_fail, name="payanyway_fail"),
 ]

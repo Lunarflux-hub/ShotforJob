@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -12,7 +12,7 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from .models import GenerationPackage, Payment, GenerationLedgerEntry
-from .robokassa import build_payment_request, verify_result_signature
+from .payanyway import build_payment_request, verify_pay_url_signature
 from .serializers import PaymentSerializer
 from . import services
 
@@ -54,8 +54,8 @@ class BillingConfigView(APIView):
 class CreateTopupView(APIView):
     """
     POST /api/billing/topup/ — создаёт платёж за выбранный пакет генераций и
-    возвращает данные для отправки формы на Robokassa. Купить можно только
-    готовый пакет — свободная сумма не поддерживается.
+    возвращает данные для отправки формы на PayAnyWay (MONETA.Assistant).
+    Купить можно только готовый пакет — свободная сумма не поддерживается.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -85,7 +85,7 @@ class CreateTopupView(APIView):
             package=package,
             amount=amount,
             generations_granted=package.generations,
-            is_test=settings.ROBOKASSA_TEST_MODE,
+            is_test=settings.PAYANYWAY_TEST_MODE,
         )
 
         promo_suffix = " (акция: первая генерация)" if is_promo else ""
@@ -138,44 +138,60 @@ class BalanceView(APIView):
 
 
 @csrf_exempt
-def robokassa_result(request):
-    """Server-to-server callback от Robokassa. Единственное место начисления генераций.
-    Robokassa может слать GET или POST в зависимости от настройки в ЛК — принимаем оба."""
+def payanyway_result(request):
+    """Server-to-server "Pay URL" callback от системы Moneta.ru (PayAnyWay).
+    Единственное место начисления генераций. Параметры могут прийти методом
+    GET или POST в зависимости от настроек расширенного счёта — принимаем оба.
+    Отвечаем текстом SUCCESS/FAIL с заголовком 200 OK, как требует документация
+    PayAnyWay (в т.ч. на пустой проверочный запрос при сохранении URL в ЛК)."""
     if request.method not in ("GET", "POST"):
-        return HttpResponseBadRequest("method not allowed")
+        return HttpResponse("FAIL", status=200)
 
     data = request.GET if request.method == "GET" else request.POST
-    out_sum = data.get("OutSum", "")
-    inv_id = data.get("InvId", "")
-    signature = data.get("SignatureValue", "")
-    receipt = data.get("Receipt", "")
 
-    if not verify_result_signature(out_sum, inv_id, signature, receipt):
-        return HttpResponseBadRequest("bad sign")
+    # Пустой проверочный запрос при сохранении Pay URL в личном кабинете Moneta.ru —
+    # параметров нет, но ответ 200 OK всё равно обязателен.
+    if not data:
+        return HttpResponse("SUCCESS", status=200)
+
+    mnt_transaction_id = data.get("MNT_TRANSACTION_ID", "")
+    mnt_operation_id = data.get("MNT_OPERATION_ID", "")
+    mnt_amount = data.get("MNT_AMOUNT", "")
+    mnt_currency_code = data.get("MNT_CURRENCY_CODE", "")
+    mnt_subscriber_id = data.get("MNT_SUBSCRIBER_ID", "")
+    mnt_test_mode = data.get("MNT_TEST_MODE", "")
+    signature = data.get("MNT_SIGNATURE", "")
+
+    if not verify_pay_url_signature(
+        mnt_transaction_id, mnt_operation_id, mnt_amount,
+        mnt_currency_code, mnt_subscriber_id, mnt_test_mode, signature,
+    ):
+        return HttpResponse("FAIL", status=200)
 
     try:
-        payment_id = int(inv_id)
+        payment_id = int(mnt_transaction_id)
     except ValueError:
-        return HttpResponseBadRequest("bad InvId")
+        return HttpResponse("FAIL", status=200)
 
     with transaction.atomic():
         try:
             payment = Payment.objects.select_for_update().get(id=payment_id)
         except Payment.DoesNotExist:
-            return HttpResponseBadRequest("unknown payment")
+            return HttpResponse("FAIL", status=200)
 
-        # Идемпотентность — если уже оплачен, просто возвращаем OK
+        # Идемпотентность — если уже оплачен, просто возвращаем SUCCESS
         if payment.status == Payment.Status.PAID:
-            return HttpResponse(f"OK{inv_id}")
+            return HttpResponse("SUCCESS", status=200)
 
         # Сверяем сумму
-        if Decimal(out_sum) != payment.amount:
-            return HttpResponseBadRequest("amount mismatch")
+        if Decimal(mnt_amount) != payment.amount:
+            return HttpResponse("FAIL", status=200)
 
         payment.status = Payment.Status.PAID
         payment.paid_at = timezone.now()
+        payment.payanyway_operation_id = mnt_operation_id
         payment.raw_result_payload = dict(data)
-        payment.save(update_fields=["status", "paid_at", "raw_result_payload"])
+        payment.save(update_fields=["status", "paid_at", "payanyway_operation_id", "raw_result_payload"])
 
         services.credit_generations(
             payment.user,
@@ -184,17 +200,18 @@ def robokassa_result(request):
             payment=payment,
         )
 
-    return HttpResponse(f"OK{inv_id}")
+    return HttpResponse("SUCCESS", status=200)
 
 
-def robokassa_success(request):
-    """Редирект пользователя на фронт. НЕ начисляет генерации."""
+def payanyway_success(request):
+    """Редирект пользователя на фронт (Success URL). НЕ начисляет генерации."""
     data = request.GET if request.method == "GET" else request.POST
-    inv_id = data.get("InvId", "")
+    inv_id = data.get("MNT_TRANSACTION_ID", "")
     return redirect(f"{settings.FRONTEND_URL}/billing/success?invoice={inv_id}")
 
 
-def robokassa_fail(request):
+def payanyway_fail(request):
+    """Fail URL — пользователь отменил оплату или она не прошла."""
     data = request.GET if request.method == "GET" else request.POST
-    inv_id = data.get("InvId", "")
+    inv_id = data.get("MNT_TRANSACTION_ID", "")
     return redirect(f"{settings.FRONTEND_URL}/billing/fail?invoice={inv_id}")

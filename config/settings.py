@@ -237,23 +237,15 @@ SUPPORT_EMAIL = env("SUPPORT_EMAIL", default="support@shotforjob.ru")
 # (success/fail страницы). Без слэша на конце.
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:8000")
 
-# --- Robokassa (оплата пополнения баланса) ----------------------------------
-ROBOKASSA_MERCHANT_LOGIN = env("ROBOKASSA_MERCHANT_LOGIN", default="")
-ROBOKASSA_TEST_MODE = env.bool("ROBOKASSA_TEST_MODE", default=True)
-# В тестовом режиме (IsTest=1) Robokassa подписывает запросы отдельной парой
-# тестовых паролей из ЛК (раздел "Тестовая среда"), а не боевыми — поэтому
-# пароли выбираются в зависимости от режима.
-if ROBOKASSA_TEST_MODE:
-    ROBOKASSA_PASSWORD_1 = env("ROBOKASSA_TEST_PASSWORD_1", default="")
-    ROBOKASSA_PASSWORD_2 = env("ROBOKASSA_TEST_PASSWORD_2", default="")
-else:
-    ROBOKASSA_PASSWORD_1 = env("ROBOKASSA_PASSWORD_1", default="")
-    ROBOKASSA_PASSWORD_2 = env("ROBOKASSA_PASSWORD_2", default="")
-    ROBOKASSA_PASSWORD_3 = env("ROBOKASSA_PASSWORD_3", default="")
-
-# Система налогообложения и ставка НДС для чеков
-ROBOKASSA_SNO = env("ROBOKASSA_SNO", default="usn_income")
-ROBOKASSA_TAX = env("ROBOKASSA_TAX", default="none")
+# --- PayAnyWay / Moneta.ru (оплата пополнения баланса) ----------------------
+# Номер расширенного счёта в системе MONETA.RU (аналог MerchantLogin)
+PAYANYWAY_MNT_ID = env("PAYANYWAY_MNT_ID", default="")
+# Код проверки целостности данных — свойство расширенного счёта, задаётся в ЛК
+# Moneta.ru. Используется и для подписи исходящей формы оплаты, и для проверки
+# подписи входящих уведомлений (Pay URL).
+PAYANYWAY_INTEGRITY_CODE = env("PAYANYWAY_INTEGRITY_CODE", default="")
+PAYANYWAY_TEST_MODE = env.bool("PAYANYWAY_TEST_MODE", default=True)
+PAYANYWAY_CURRENCY_CODE = env("PAYANYWAY_CURRENCY_CODE", default="RUB")
 
 # --- Продакшн-безопасность ---------------------------------------------
 # Активны только когда DEBUG=False (т.е. на проде, см. .env на сервере).

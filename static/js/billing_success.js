@@ -1,6 +1,6 @@
 /**
- * Логика страницы /billing/success/ — псевдо-чек после оплаты через Robokassa.
- * Реальный фискальный чек присылает сама Robokassa на почту — здесь только
+ * Логика страницы /billing/success/ — псевдо-чек после оплаты через PayAnyWay.
+ * Реальный фискальный чек присылает сама Moneta.ru на почту — здесь только
  * дизайн подтверждения. Зависит от window.PhotoStudioAuth (auth.js).
  */
 (() => {
@@ -35,7 +35,7 @@
     }
 
     // Детерминированный псевдо-штрихкод — только оформление, без реального
-    // фискального смысла (настоящий чек шлёт Robokassa на почту).
+    // фискального смысла (настоящий чек шлёт Moneta.ru на почту).
     function drawBarcode(svg, value) {
         let hash = 0;
         for (let i = 0; i < value.length; i++) {
@@ -162,10 +162,10 @@
         }
 
         const params = new URLSearchParams(window.location.search);
-        // Основной путь — редирект через наш сервер (/api/billing/robokassa/success/),
-        // который кладёт чистый ?invoice=. Но если в кабинете Robokassa ResultURL/SuccessURL
+        // Основной путь — редирект через наш сервер (/api/billing/payanyway/success/),
+        // который кладёт чистый ?invoice=. Но если в ЛК Moneta.ru Success URL
         // настроен прямо на эту страницу, придут её сырые параметры — поддерживаем и это.
-        const invoice = params.get("invoice") || params.get("InvId");
+        const invoice = params.get("invoice") || params.get("MNT_TRANSACTION_ID");
         if (!invoice) {
             showError("Не передан номер платежа.");
             return;
