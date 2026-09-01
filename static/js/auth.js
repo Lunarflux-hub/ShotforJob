@@ -198,26 +198,33 @@
     });
 
     // ---------- Email/пароль: логин и регистрация (страница /login/) ----------
-    async function loginWithPassword(username, password) {
+    // ТЕСТОВЫЙ вход по email/паролю (email == логин), для интеграции с
+    // платёжкой. При откате — просто вернуть старый вариант этого блока.
+    async function loginWithPassword(email, password) {
         const resp = await fetch(`${API_BASE}/auth/login/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
+            body: JSON.stringify({ email, password }),
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
-            throw new Error(err.detail || "Неверный логин или пароль");
+            const firstError = Object.values(err)[0];
+            throw new Error(
+                err.detail ||
+                    (Array.isArray(firstError) ? firstError[0] : null) ||
+                    "Неверный email или пароль"
+            );
         }
         const tokens = await resp.json();
-        // Обычный логин по паролю не отдаёт аватар — используем имя пользователя
-        saveSession(tokens.access, tokens.refresh, { name: username });
+        // Обычный логин по паролю не отдаёт аватар — используем email
+        saveSession(tokens.access, tokens.refresh, { name: email, email });
     }
 
-    async function registerAndLogin(username, email, password) {
+    async function registerAndLogin(email, password) {
         const resp = await fetch(`${API_BASE}/auth/register/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, email, password }),
+            body: JSON.stringify({ email, password }),
         });
         if (!resp.ok) {
             const err = await resp.json().catch(() => ({}));
@@ -229,7 +236,7 @@
             );
         }
         // /api/auth/register/ не возвращает JWT — логинимся сразу теми же данными
-        await loginWithPassword(username, password);
+        await loginWithPassword(email, password);
     }
 
     function bindLoginForm() {
@@ -242,7 +249,7 @@
             errorBox.style.display = "none";
             try {
                 await loginWithPassword(
-                    form.querySelector("[name=username]").value.trim(),
+                    form.querySelector("[name=email]").value.trim(),
                     form.querySelector("[name=password]").value
                 );
                 window.location.href = "/";
@@ -263,7 +270,6 @@
             errorBox.style.display = "none";
             try {
                 await registerAndLogin(
-                    form.querySelector("[name=username]").value.trim(),
                     form.querySelector("[name=email]").value.trim(),
                     form.querySelector("[name=password]").value
                 );
@@ -272,6 +278,22 @@
                 errorBox.textContent = err.message;
                 errorBox.style.display = "block";
             }
+        });
+    }
+
+    function bindAuthToggle() {
+        const toggleBtn = document.getElementById("authToggleModeBtn");
+        const loginForm = document.getElementById("loginForm");
+        const registerForm = document.getElementById("registerForm");
+        if (!toggleBtn || !loginForm || !registerForm) return;
+
+        toggleBtn.addEventListener("click", () => {
+            const showingLogin = loginForm.style.display !== "none";
+            loginForm.style.display = showingLogin ? "none" : "flex";
+            registerForm.style.display = showingLogin ? "flex" : "none";
+            toggleBtn.textContent = showingLogin
+                ? "Уже есть аккаунт? Войти"
+                : "Нет аккаунта? Зарегистрироваться";
         });
     }
 
@@ -370,6 +392,7 @@
         updateBalanceWidget();
         bindLoginForm();
         bindRegisterForm();
+        bindAuthToggle();
         initMobileMenu();
 
         const yandexBtn = document.getElementById("yandexLoginBtn");
