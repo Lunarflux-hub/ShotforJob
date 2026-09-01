@@ -574,7 +574,8 @@
 
     async function loadConfig() {
         try {
-            const resp = await fetch(`${API_BASE}/config/`);
+            const doFetch = window.PhotoStudioAuth ? window.PhotoStudioAuth.authFetch : fetch;
+            const resp = await doFetch(`${API_BASE}/config/`);
             if (!resp.ok) throw new Error("Не удалось загрузить пакеты");
             config = await resp.json();
         } catch (e) {

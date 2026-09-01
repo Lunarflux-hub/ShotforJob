@@ -1606,7 +1606,8 @@
             }
         }
 
-        fetch(API_BASE + '/config/')
+        var doFetch = window.PhotoStudioAuth ? window.PhotoStudioAuth.authFetch : fetch;
+        doFetch(API_BASE + '/config/')
             .then(function (resp) {
                 if (!resp.ok) throw new Error('bad response');
                 return resp.json();
