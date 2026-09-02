@@ -248,9 +248,9 @@
             max-width: 620px;
         }
 
-        .polaroid-group { transform: scale(0.45); }
-        .polaroid-group.top-right { top: 10px; right: -40px; }
-        .polaroid-group.bottom-left { bottom: 10px; left: -40px; }
+        .polaroid-group { transform: scale(0.6); }
+        .polaroid-group.top-right { top: -15px; right: -25px; }
+        .polaroid-group.bottom-left { bottom: -15px; left: -25px; }
 
         .photo-left, .photo-right { width: 150px; height: 150px; }
         .photo-center { width: 150px; height: 195px; }
@@ -1030,11 +1030,16 @@
         padding: 0 24px 24px 24px;
     }
 
-    /* Ноутбуки: гарантируем 3 карточки стилей в один ряд (в диапазоне выше уже покрыт блоком max-width:1024px) */
+    /* Ноутбуки: гарантируем 3 карточки стилей в один ряд, широкие, без переносов текста */
     @media (min-width: 1025px) and (max-width: 1600px) {
-        .styles-text { flex: 1 1 320px; min-width: 260px; }
-        .styles-cards { gap: 20px; }
-        .style-card, .place-card { min-width: 150px; }
+        .styles-section { gap: 40px; }
+        .styles-text { flex: 0 0 280px; min-width: 240px; }
+        .styles-cards { flex: 1 1 auto; gap: 16px; }
+        .style-card, .place-card { flex: 1 1 0; min-width: 210px; }
+        .place-card-header { flex-wrap: nowrap; }
+        .place-card-header h3 { font-size: 17px; white-space: nowrap; }
+        .place-card-badge.outline { font-size: 10px; padding: 3px 8px; }
+        .place-card-footer { flex-wrap: nowrap; }
     }
     @media (max-width: 1024px) {
         .hero-subtitle {
@@ -1051,9 +1056,13 @@
         .styles-section { gap: 40px; padding: 60px 0; }
         .styles-text h2 { font-size: 40px; }
         .styles-text .description { font-size: 17px; }
-        .styles-cards { gap: 24px; }
-        .style-card { flex: 1 1 calc(33.333% - 24px); min-width: 140px; }
-        .place-card { flex: 1 1 calc(33.333% - 24px); min-width: 140px; }
+        .styles-text { flex: 0 0 260px; min-width: 220px; }
+        .styles-cards { flex: 1 1 auto; gap: 14px; }
+        .style-card, .place-card { flex: 1 1 0; min-width: 170px; }
+        .place-card-header { flex-wrap: nowrap; }
+        .place-card-header h3 { font-size: 16px; white-space: nowrap; }
+        .place-card-badge.outline { font-size: 10px; padding: 3px 7px; }
+        .place-card-footer { flex-wrap: nowrap; }
         .style-card .card-text p { font-size: 17px; }
         .styles-cta { font-size: 17px; padding: 12px 30px; }
         .tariffs-title { font-size: 40px; }
