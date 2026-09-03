@@ -176,6 +176,7 @@
         .menu-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
         .menu-theme-item { display: none; }
+        .menu-lang-item { display: none; }
         .menu-theme-btn {
             display: flex;
             align-items: center;
@@ -186,6 +187,36 @@
             cursor: pointer;
             color: var(--menu-panel-text);
             text-align: left;
+        }
+
+        .lang-switch {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 3px;
+            border-radius: 10px;
+            background: var(--menu-panel-hover, rgba(0,0,0,0.05));
+        }
+        .lang-switch button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-family: 'Vela Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 10px;
+            border-radius: 8px;
+            color: var(--menu-panel-text, inherit);
+            opacity: 0.6;
+        }
+        .lang-switch button.active {
+            opacity: 1;
+            background: var(--header-bg, #fff);
+        }
+        .lang-switch-desktop { margin-right: 4px; }
+        @media (max-width: 768px) {
+            .lang-switch-desktop { display: none; }
+            .menu-lang-item { display: block; padding: 6px 16px; }
         }
 
         .header-btn {
@@ -695,19 +726,30 @@
         <div class="header-right">
             <nav class="menu">
                 <ul>
-                    <li><a href="/">Главная</a></li>
-                    <li><a href="/#pricing">Цены</a></li>
-                    <li><a href="{% url 'workstation' %}" class="auth-required">Workstation</a></li>
-                    <li><a href="/#faq">Вопросы</a></li>
-                    <li><a href="{% url 'policy' %}">Политика</a></li>
+                    <li><a href="/" data-en="Home">Главная</a></li>
+                    <li><a href="/#pricing" data-en="Pricing">Цены</a></li>
+                    <li><a href="{% url 'workstation' %}" class="auth-required" data-en="Workstation">Workstation</a></li>
+                    <li><a href="/#faq" data-en="FAQ">Вопросы</a></li>
+                    <li><a href="{% url 'policy' %}" data-en="Policy">Политика</a></li>
+                    <li class="menu-lang-item">
+                        <div class="lang-switch" role="group" aria-label="Language">
+                            <button type="button" data-lang="ru">RU</button>
+                            <button type="button" data-lang="en">EN</button>
+                        </div>
+                    </li>
                     <li class="menu-theme-item">
                         <button type="button" class="menu-theme-btn" id="themeToggleMobile">
                             <img src="{% static 'images/theme-icon.png' %}" alt="" class="dropdown-icon" />
-                            Тёмная/светлая тема
+                            <span data-en="Dark/light theme">Тёмная/светлая тема</span>
                         </button>
                     </li>
                 </ul>
             </nav>
+
+            <div class="lang-switch lang-switch-desktop" role="group" aria-label="Language">
+                <button type="button" data-lang="ru">RU</button>
+                <button type="button" data-lang="en">EN</button>
+            </div>
 
             <button type="button" class="menu-toggle" id="menuToggle" aria-label="Открыть меню" aria-expanded="false">
                 <span></span><span></span><span></span>
@@ -718,7 +760,7 @@
                     <img src="{% static 'images/lightning-icon.png' %}" alt="Молния" style="width:20px; height:20px; display:block;">
                 </span>
                 <span class="balance-badge-count" id="balanceBadgeCount">—</span>
-                <span class="balance-badge-label">генераций</span>
+                <span class="balance-badge-label" data-en="generations">генераций</span>
             </a>
 
             <div class="dropdown-wrapper">
@@ -730,19 +772,19 @@
                     <span class="dropdown-highlight" id="authDropdownHighlight"></span>
                     <a href="/workstation/" class="dropdown-item auth-required" title="WorkStation">
                         <img src="{% static 'images/workstation-icon.png' %}" alt="" class="dropdown-icon" />
-                        <span class="dropdown-label">WorkStation</span>
+                        <span class="dropdown-label" data-en="WorkStation">WorkStation</span>
                     </a>
                     <a href="/results/" class="dropdown-item" title="Портфолио">
                         <img src="{% static 'images/gallery-icon.png' %}" alt="" class="dropdown-icon" />
-                        <span class="dropdown-label">Портфолио</span>
+                        <span class="dropdown-label" data-en="Portfolio">Портфолио</span>
                     </a>
                     <a href="/payment/" class="dropdown-item" title="Оплата">
                         <img src="{% static 'images/wallet-icon.png' %}" alt="" class="dropdown-icon" />
-                        <span class="dropdown-label">Оплата</span>
+                        <span class="dropdown-label" data-en="Payment">Оплата</span>
                     </a>
                     <button class="dropdown-item logout-btn" id="dropdownLogoutBtn" title="Выйти">
                         <img src="{% static 'images/exit-icon.png' %}" alt="" class="dropdown-icon" />
-                        <span class="dropdown-label">Выйти</span>
+                        <span class="dropdown-label" data-en="Log out">Выйти</span>
                     </button>
                 </div>
             </div>
@@ -761,8 +803,8 @@
     <footer class="footer">
         <div class="footer-grid">
             <div class="footer-col">
-                <div class="footer-headline">Фото уровня салона не выходя из дома</div>
-                <p class="footer-description">
+                <div class="footer-headline" data-en="Salon-quality photos without leaving home">Фото уровня салона не выходя из дома</div>
+                <p class="footer-description" data-en="Getting a perfect ID photo can be a hassle — a trip to the photographer costs a lot of time and money. ShotForJob is a great solution!">
                     Сделать идеальное фото на документы бывает очень трудно<br>
                     поездка к фотографу занимает много времени, но и денег<br>
                     ShotForJob это отличное решение!
@@ -770,14 +812,14 @@
             </div>
             <div class="footer-col">
                 <ul>
-                    <li><a href="/">Главная</a></li>
-                    <li><a href="/#pricing">Цены</a></li>
-                    <li><a href="{% url 'workstation' %}" class="auth-required">Workstation</a></li>
-                    <li><a href="/workstation/" class="auth-required">Начнём!</a></li>
-                    <li><a href="/#faq">Вопросы</a></li>
-                    <li><a href="{% url 'support' %}">Поддержка</a></li>
-                    <li><a href="{% url 'results' %}" class="auth-required">Портфолио</a></li>
-                    <li><a href="{% url 'policy' %}">Политика</a></li>
+                    <li><a href="/" data-en="Home">Главная</a></li>
+                    <li><a href="/#pricing" data-en="Pricing">Цены</a></li>
+                    <li><a href="{% url 'workstation' %}" class="auth-required" data-en="Workstation">Workstation</a></li>
+                    <li><a href="/workstation/" class="auth-required" data-en="Let's start!">Начнём!</a></li>
+                    <li><a href="/#faq" data-en="FAQ">Вопросы</a></li>
+                    <li><a href="{% url 'support' %}" data-en="Support">Поддержка</a></li>
+                    <li><a href="{% url 'results' %}" class="auth-required" data-en="Portfolio">Портфолио</a></li>
+                    <li><a href="{% url 'policy' %}" data-en="Policy">Политика</a></li>
                 </ul>
             </div>
             <div class="footer-col social-col">
@@ -1023,6 +1065,33 @@
             });
         });
     });
+    </script>
+    <script>
+    (function() {
+        function applyLang(lang) {
+            document.querySelectorAll('[data-en]').forEach(function(el) {
+                if (el.dataset.ru === undefined) {
+                    el.dataset.ru = el.innerHTML;
+                }
+                el.innerHTML = lang === 'en' ? el.getAttribute('data-en') : el.dataset.ru;
+            });
+            document.querySelectorAll('.lang-switch button').forEach(function(btn) {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            document.documentElement.setAttribute('lang', lang);
+            window.SFJ_LANG = lang;
+            try { localStorage.setItem('siteLang', lang); } catch (e) {}
+        }
+        window.SFJ_applyLang = applyLang;
+        document.addEventListener('DOMContentLoaded', function() {
+            var saved = 'ru';
+            try { saved = localStorage.getItem('siteLang') || 'ru'; } catch (e) {}
+            applyLang(saved);
+            document.querySelectorAll('.lang-switch button').forEach(function(btn) {
+                btn.addEventListener('click', function() { applyLang(btn.dataset.lang); });
+            });
+        });
+    })();
     </script>
     {% block extra_js %}{% endblock %}
 </body>

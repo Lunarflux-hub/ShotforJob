@@ -1087,6 +1087,7 @@
         .faq-section { gap: 40px; }
     }
     @media (max-width: 768px) {
+        .polaroid-group { display: none; }
         .hero { min-height: auto; padding-bottom: 40px; }
         .hero-title { font-size: 32px; margin-top: 50px; letter-spacing: 0.08em; }
         .hero-center-images { margin: 20px 0 0; padding: 0 8px; }
@@ -1264,7 +1265,7 @@
             </div>
         </div>
 
-        <h1 class="hero-title">Фото уровня салона <br> не выходя из дома</h1>
+        <h1 class="hero-title" data-en="Salon-quality photos <br> without leaving home">Фото уровня салона <br> не выходя из дома</h1>
 
         <!-- ТРИ ЦЕНТРАЛЬНЫХ ФОТО (1,2,3) -->
         <div class="hero-center-images" aria-hidden="true">
@@ -1280,13 +1281,13 @@
         </div>
 
         <div class="bottom-block">
-            <p class="hero-subtitle">
+            <p class="hero-subtitle" data-en="One click and neural network turns your photo into a business portrait,<br>as if you just stepped out of a professional photo studio">
                 Один клик и нейросеть превратит ваше фото в деловой снимок,<br>
                 будто вы только что вышли из профессиональной фотостудии
             </p>
             <div class="buttons">
-                <a href="/workstation/" class="btn btn-primary auth-required" id="heroTryBtn">Попробовать</a>
-                <a href="/results/" class="btn btn-secondary auth-required">Результаты</a>
+                <a href="/workstation/" class="btn btn-primary auth-required" id="heroTryBtn" data-en="Try it">Попробовать</a>
+                <a href="/results/" class="btn btn-secondary auth-required" data-en="Results">Результаты</a>
             </div>
         </div>
     </section>
@@ -1294,15 +1295,15 @@
     <!-- ===== Секция "Наши стили" ===== -->
     <section class="styles-section">
         <div class="styles-text">
-            <h2>
+            <h2 data-en="Our styles<br>for your photos">
                 Наши стили<br>
                 для ваших фото
             </h2>
-            <p class="description">
+            <p class="description" data-en="Choose a look for your purpose —<br>formal, natural or creative.">
                 Выберите образ для ваших целей<br>
                 строгий, естественный или творческий.
             </p>
-            <a href="/workstation/" class="styles-cta auth-required">Готовы преобразиться?</a>
+            <a href="/workstation/" class="styles-cta auth-required" data-en="Ready to transform?">Готовы преобразиться?</a>
         </div>
 
         <div class="styles-cards">
@@ -1322,14 +1323,14 @@
                 </div>
                 <div class="place-card-body">
                     <div class="place-card-header">
-                        <h3>Деловой</h3>
-                        <span class="place-card-badge outline">Популярный</span>
+                        <h3 data-en="Business">Деловой</h3>
+                        <span class="place-card-badge outline" data-en="Popular">Популярный</span>
                     </div>
-                    <p class="place-card-desc">Стиль для документов и серьёзного резюме. Можно изменить стиль вид и цвет одежды.</p>
+                    <p class="place-card-desc" data-en="A style for documents and a serious resume. You can change the outfit's style and color.">Стиль для документов и серьёзного резюме. Можно изменить стиль вид и цвет одежды.</p>
                     <div class="place-card-footer">
-                        <p class="place-card-price">99₽ <span>/ фото</span></p>
+                        <p class="place-card-price">99₽ <span data-en="/ photo">/ фото</span></p>
                         <a href="/workstation/" class="place-card-book-btn auth-required">
-                            Выбрать
+                            <span data-en="Choose">Выбрать</span>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
                             </svg>
@@ -1354,14 +1355,14 @@
                 </div>
                 <div class="place-card-body">
                     <div class="place-card-header">
-                        <h3>Повседневный</h3>
-                        <span class="place-card-badge outline">Наш выбор</span>
+                        <h3 data-en="Everyday">Повседневный</h3>
+                        <span class="place-card-badge outline" data-en="Our pick">Наш выбор</span>
                     </div>
-                    <p class="place-card-desc">Естественный образ для соцсетей, блогов и личных проектов.</p>
+                    <p class="place-card-desc" data-en="A natural look for social media, blogs and personal projects.">Естественный образ для соцсетей, блогов и личных проектов.</p>
                     <div class="place-card-footer">
-                        <p class="place-card-price">99₽ <span>/ фото</span></p>
+                        <p class="place-card-price">99₽ <span data-en="/ photo">/ фото</span></p>
                         <a href="/workstation/" class="place-card-book-btn auth-required">
-                            Выбрать
+                            <span data-en="Choose">Выбрать</span>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
                             </svg>
@@ -1386,17 +1387,18 @@
                 </div>
                 <div class="place-card-body">
                     <div class="place-card-header">
-                        <h3>Креативный</h3>
-                        <span class="place-card-badge outline">Необычный</span>
+                        <h3 data-en="Creative">Креативный</h3>
+                        <span class="place-card-badge outline" data-en="Unusual">Необычный</span>
                     </div>
-                    <p class="place-card-desc">Нестандартные решения, яркие цвета и оригинальные композиции для портфолио.</p>
+                    <p class="place-card-desc" data-en="Non-standard solutions, bright colors and original compositions for a portfolio.">Нестандартные решения, яркие цвета и оригинальные композиции для портфолио.</p>
                     <div class="place-card-footer">
-                        <p class="place-card-price">99₽ <span>/ фото</span></p>
+                        <p class="place-card-price">99₽ <span data-en="/ photo">/ фото</span></p>
                         <a href="/workstation/" class="place-card-book-btn auth-required">
-                            Выбрать
+                            <span data-en="Choose">Выбрать</span>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
                             </svg>
+
                         </a>
                     </div>
                 </div>
@@ -1406,22 +1408,22 @@
 
     <!-- ===== Тарифы ===== -->
     <section class="tariffs-section" id="pricing">
-        <h2 class="tariffs-title">Выберите тариф</h2>
-        <p class="tariffs-subtitle">
+        <h2 class="tariffs-title" data-en="Choose a plan">Выберите тариф</h2>
+        <p class="tariffs-subtitle" data-en="Check out our plans for generations —<br>after purchase they're credited to your balance instantly.">
             Рассмотрите наши тарифы на получение генераций<br>
             после покупки они моментально зачислятся на баланс.
         </p>
 
         <div class="tariffs-grid" id="tariffsGrid">
-            <p class="tariffs-loading">Загружаем тарифы…</p>
+            <p class="tariffs-loading" data-en="Loading plans…">Загружаем тарифы…</p>
         </div>
     </section>
 
     <!-- ===== FAQ ===== -->
     <section class="faq-section" id="faq">
         <div class="faq-left">
-            <h2 class="faq-title">Часто задаваемые вопросы</h2>
-            <p class="faq-subtitle">
+            <h2 class="faq-title" data-en="Frequently asked questions">Часто задаваемые вопросы</h2>
+            <p class="faq-subtitle" data-en="Everything you need to know about ShotForJob.<br>If you still have questions, write to our support team.">
                 Всё что вам нужно знать про ShotForJob<br>
                 если у вас остались вопросы, напишите<br>
                 в нашу
@@ -1433,46 +1435,46 @@
         <div class="faq-right">
             <div class="faq-item">
                 <div class="faq-question">
-                    <span>Как работает сервис?</span>
+                    <span data-en="How does the service work?">Как работает сервис?</span>
                     <span class="faq-icon"></span>
                 </div>
-                <div class="faq-answer">
+                <div class="faq-answer" data-en="You upload your photo, choose a style and pay for the generation. The neural network processes the image in a few seconds, then you get a finished result in high quality.">
                     Вы загружаете своё фото, выбираете стиль и оплачиваете генерацию. Нейросеть обрабатывает изображение в течение нескольких секунд, после чего вы получаете готовый результат в высоком качестве.
                 </div>
             </div>
             <div class="faq-item">
                 <div class="faq-question">
-                    <span>Какие форматы фото поддерживаются?</span>
+                    <span data-en="Which photo formats are supported?">Какие форматы фото поддерживаются?</span>
                     <span class="faq-icon"></span>
                 </div>
-                <div class="faq-answer">
+                <div class="faq-answer" data-en="We accept JPG, PNG, WEBP and HEIC. Recommended size — from 500×500 to 4000×4000 pixels. The file must not exceed 20 MB.">
                     Мы принимаем JPG, PNG, WEBP и HEIC. Рекомендуемый размер — от 500×500 до 4000×4000 пикселей. Файл не должен превышать 20 МБ.
                 </div>
             </div>
             <div class="faq-item">
                 <div class="faq-question">
-                    <span>Сколько времени занимает обработка?</span>
+                    <span data-en="How long does processing take?">Сколько времени занимает обработка?</span>
                     <span class="faq-icon"></span>
                 </div>
-                <div class="faq-answer">
+                <div class="faq-answer" data-en="Processing usually takes 5 to 30 seconds. At peak hours it may take up to 2 minutes. You'll get a notification once your photo is ready.">
                     Обычно обработка занимает от 5 до 30 секунд. В пиковые часы время может увеличиться до 2 минут. Вы получите уведомление, когда фото будет готово.
                 </div>
             </div>
             <div class="faq-item">
                 <div class="faq-question">
-                    <span>Можно ли вернуть деньги?</span>
+                    <span data-en="Can I get a refund?">Можно ли вернуть деньги?</span>
                     <span class="faq-icon"></span>
                 </div>
-                <div class="faq-answer">
+                <div class="faq-answer" data-en="Yes, but first we'll regenerate the result for free so you're satisfied. If you insist on a refund, it's issued minus actual costs incurred (neural network and commission fees) — per Article 32 of the Russian Consumer Protection Law. A full refund is only given for a technical fault on our side.">
                     Да, но сначала мы бесплатно перегенерируем результат, чтобы вы остались довольны. Если вы настаиваете на возврате, он производится за вычетом фактических расходов (оплата нейросети и комиссии) — согласно ст. 32 ЗоЗПП. Полный возврат — только при техническом браке с нашей стороны.
                 </div>
             </div>
             <div class="faq-item">
                 <div class="faq-question">
-                    <span>Какие стили доступны?</span>
+                    <span data-en="Which styles are available?">Какие стили доступны?</span>
                     <span class="faq-icon"></span>
                 </div>
-                <div class="faq-answer">
+                <div class="faq-answer" data-en="We offer 3 styles: business, everyday, creative. You can change the background or outfit on the generated photo — the full list is shown when you upload a photo.">
                     Мы предлагаем 3 стиля: деловой, повседневный, креативный. Вы сможите изменить фон или одежду на генерируемом фото, полный список вы увидите при загрузке фото.
                 </div>
             </div>
@@ -1567,6 +1569,19 @@
             'Оптимальный': 'highlight-1',
             'Профессиональный': 'highlight-2',
         };
+        var titleEn = {
+            'Стартовый': 'Starter',
+            'Оптимальный': 'Optimal',
+            'Профессиональный': 'Professional',
+            'Бизнес': 'Business',
+        };
+        var featuresByTitleEn = {
+            'Стартовый': ['Basic styles', 'Suits a single photo'],
+            'Оптимальный': ['Extended style set', 'Priority processing', 'Image editing'],
+            'Профессиональный': ['Exclusive styles', 'Dedicated personal queue', 'Up to 3 photos per order'],
+            'Бизнес': ['For teams and agencies', 'Priority support 24/7', 'Unlimited access to all styles'],
+        };
+        var defaultFeaturesEn = ['Instant balance top-up', 'All styles available right away'];
 
         // Заново навешиваем ту же проверку авторизации, что base.html вешает
         // на .auth-required при DOMContentLoaded — карточки рендерятся позже,
@@ -1586,7 +1601,8 @@
             tariffsGrid.innerHTML = '';
 
             if (!packages.length) {
-                tariffsGrid.innerHTML = '<p class="tariffs-loading">Тарифы временно недоступны.</p>';
+                tariffsGrid.innerHTML = '<p class="tariffs-loading" data-en="Plans are temporarily unavailable.">Тарифы временно недоступны.</p>';
+                if (window.SFJ_applyLang) { window.SFJ_applyLang(window.SFJ_LANG || 'ru'); }
                 return;
             }
 
@@ -1601,10 +1617,10 @@
 
                 var badgeHtml = '';
                 if (isPromo) {
-                    badgeHtml = '<div class="tariff-badge color-promo">🎁 Акция для новых</div>';
+                    badgeHtml = '<div class="tariff-badge color-promo" data-en="🎁 Deal for new users">🎁 Акция для новых</div>';
                 } else if (highlightByTitle[pkg.title]) {
                     var cls = highlightByTitle[pkg.title] === 'highlight-1' ? 'color-1' : 'color-2';
-                    badgeHtml = '<div class="tariff-badge ' + cls + '">🔥 Самый выгодный</div>';
+                    badgeHtml = '<div class="tariff-badge ' + cls + '" data-en="🔥 Best value">🔥 Самый выгодный</div>';
                 }
 
                 var displayPrice = Math.floor(parseFloat(pkg.price));
@@ -1613,24 +1629,28 @@
                       '<span class="tariff-price promo-price">' + Math.floor(parseFloat(pkg.promo_price)) + ' ₽</span>'
                     : '<span class="tariff-price">' + displayPrice + ' ₽</span>';
                 var promoNoteHtml = isPromo
-                    ? '<div class="tariff-promo-note">Цена для первой генерации — доступно один раз</div>'
+                    ? '<div class="tariff-promo-note" data-en="Price for the first generation — available once">Цена для первой генерации — доступно один раз</div>'
                     : '';
 
                 var features = featuresByTitle[pkg.title] || defaultFeatures;
-                var featuresHtml = features.map(function (f) {
-                    return '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>' + f + '</li>';
+                var featuresEn = featuresByTitleEn[pkg.title] || defaultFeaturesEn;
+                var featuresHtml = features.map(function (f, i) {
+                    return '<li data-en="' + (featuresEn[i] || f) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>' + f + '</li>';
                 }).join('');
+
+                var genWord = pkg.generations === 1 ? 'генерация' : 'генераций';
+                var genWordEn = pkg.generations === 1 ? 'generation' : 'generations';
 
                 card.innerHTML =
                     badgeHtml +
-                    '<h3 class="tariff-name">' + pkg.title + '</h3>' +
+                    '<h3 class="tariff-name" data-en="' + (titleEn[pkg.title] || pkg.title) + '">' + pkg.title + '</h3>' +
                     '<div class="tariff-price-row">' + priceHtml + '</div>' +
                     promoNoteHtml +
-                    '<span class="tariff-generations">' + pkg.generations + ' ' + (pkg.generations === 1 ? 'генерация' : 'генераций') + '</span>' +
+                    '<span class="tariff-generations" data-en="' + pkg.generations + ' ' + genWordEn + '">' + pkg.generations + ' ' + genWord + '</span>' +
                     '<hr class="tariff-divider">' +
                     '<ul class="tariff-features">' + featuresHtml + '</ul>' +
                     '<a href="/payment/" class="card-link tariff-btn auth-required">' +
-                    'Выбрать' +
+                    '<span data-en="Choose">Выбрать</span>' +
                     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>' +
                     '</a>';
 
@@ -1640,6 +1660,8 @@
                 tariffsGrid.appendChild(card);
             });
 
+            if (window.SFJ_applyLang) { window.SFJ_applyLang(window.SFJ_LANG || 'ru'); }
+
             // Кнопка в хиро-блоке: показываем цену самого дешёвого/акционного пакета
             if (heroTryBtn) {
                 var cheapest = sorted.reduce(function (best, pkg) {
@@ -1648,9 +1670,11 @@
                         : parseFloat(pkg.price);
                     return (best === null || effective < best) ? effective : best;
                 }, null);
-                heroTryBtn.textContent = cheapest !== null
-                    ? 'Попробовать за ' + Math.floor(cheapest) + ' ₽'
-                    : 'Попробовать';
+                var ruText = cheapest !== null ? 'Попробовать за ' + Math.floor(cheapest) + ' ₽' : 'Попробовать';
+                var enText = cheapest !== null ? 'Try it for ' + Math.floor(cheapest) + ' ₽' : 'Try it';
+                heroTryBtn.dataset.ru = ruText;
+                heroTryBtn.setAttribute('data-en', enText);
+                heroTryBtn.textContent = (window.SFJ_LANG === 'en') ? enText : ruText;
             }
         }
 
@@ -1665,7 +1689,8 @@
             })
             .catch(function () {
                 if (tariffsGrid) {
-                    tariffsGrid.innerHTML = '<p class="tariffs-loading">Не удалось загрузить тарифы. Обновите страницу.</p>';
+                    tariffsGrid.innerHTML = '<p class="tariffs-loading" data-en="Couldn\'t load plans. Please refresh the page.">Не удалось загрузить тарифы. Обновите страницу.</p>';
+                    if (window.SFJ_applyLang) { window.SFJ_applyLang(window.SFJ_LANG || 'ru'); }
                 }
                 if (heroTryBtn) heroTryBtn.textContent = 'Попробовать';
             });
