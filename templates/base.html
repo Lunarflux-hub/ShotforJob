@@ -214,7 +214,7 @@
             background: var(--header-bg, #fff);
         }
         .lang-switch-desktop { margin-right: 4px; }
-        @media (max-width: 768px) {
+        @media (max-width: 1450px) {
             .lang-switch-desktop { display: none; }
             .menu-lang-item { display: block; padding: 6px 16px; }
         }
@@ -550,33 +550,10 @@
             display: block;
         }
 
-        @media (max-width: 1024px) {
-            body { padding: 120px 40px 0 40px; }
-            .header { padding: 50px 40px 0 40px; }
-            .menu ul { gap: 28px; font-size: 16px; }
-            .menu ul li a { font-size: 16px; }
-            .header-right { gap: 28px; }
-            .footer { padding-left: 40px; padding-right: 40px; }
-            .footer-grid { gap: 24px; }
-            .footer-col:first-child { flex-basis: 200px; min-width: 180px; max-width: 300px; }
-            .footer-col:nth-child(2) ul { max-width: 220px; height: 110px; gap: 0 40px; }
-            .footer-col.social-col { gap: 8px 12px; max-width: 280px; }
-        }
-        @media (max-width: 768px) {
-            body { padding: 96px 20px 0 20px; }
-            .header {
-                padding: 20px 20px;
-                flex-direction: row;
-                flex-wrap: wrap;
-                align-items: center;
-                justify-content: space-between;
-                gap: 12px 16px;
-            }
-            .header-right {
-                flex-wrap: wrap;
-                justify-content: flex-end;
-                gap: 12px;
-            }
+        /* На ноутбучных ширинах горизонтальное меню не помещается рядом с логотипом и кнопками
+           профиля/темы — переключаемся на гамбургер раньше, чем на мобильных, чтобы меню
+           не переносилось второй строкой под шапку. */
+        @media (max-width: 1450px) {
             .menu-toggle { display: flex; }
             .menu {
                 order: 10;
@@ -619,6 +596,46 @@
             .menu-theme-btn:hover, .menu-theme-btn:active { background: var(--menu-panel-hover); }
             .menu-theme-btn .dropdown-icon { width: 20px; height: 20px; margin-right: 12px; }
             .header-right #themeToggle { display: none; }
+        }
+        @media (max-width: 1024px) {
+            body { padding: 120px 40px 0 40px; }
+            .header { padding: 50px 40px 0 40px; }
+            .menu ul { gap: 28px; font-size: 16px; }
+            .menu ul li a { font-size: 16px; }
+            .header-right { gap: 28px; }
+            .footer { padding-left: 40px; padding-right: 40px; }
+            .footer-grid { gap: 24px; }
+            .footer-col:first-child { flex-basis: 200px; min-width: 180px; max-width: 300px; }
+            .footer-col:nth-child(2) {
+                flex: 1 1 220px;
+                min-width: 0;
+                max-width: 260px;
+            }
+            .footer-col:nth-child(2) ul {
+                max-width: 100%;
+                height: auto;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px 20px;
+            }
+            .footer-col:nth-child(2) ul li { margin-bottom: 0; }
+            .footer-col.social-col { gap: 8px 12px; max-width: 280px; }
+        }
+        @media (max-width: 768px) {
+            body { padding: 96px 20px 0 20px; }
+            .header {
+                padding: 20px 20px;
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px 16px;
+            }
+            .header-right {
+                flex-wrap: wrap;
+                justify-content: flex-end;
+                gap: 12px;
+            }
             .header-btn { height: 44px; min-width: 44px; padding: 0 10px; }
             .header-btn img { width: 22px; height: 22px; }
             .auth-user-name { font-size: 13px; max-width: 100px; }
@@ -823,7 +840,6 @@
                 </ul>
             </div>
             <div class="footer-col social-col">
-              <div class="footer-col social-col">
                 <a href="https://www.youtube.com/@shotforjob" class="footer-btn" target="_blank" rel="noopener noreferrer">
                     <img src="{% static 'images/youtube-icon.png' %}" alt="иконка" />
                     YouTube
