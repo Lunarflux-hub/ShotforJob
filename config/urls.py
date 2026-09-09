@@ -33,6 +33,12 @@ urlpatterns = [
         ),
         name="login",
     ),
+    # Файл подтверждения прав на сайт в Яндекс.Вебмастере
+    path(
+        "yandex_2428af10fa3df26d.html",
+        TemplateView.as_view(template_name="yandex_2428af10fa3df26d.html", content_type="text/html"),
+        name="yandex_verification",
+    ),
     path("workstation/", TemplateView.as_view(template_name="workstation.html"), name="workstation"),
     path("payment/", TemplateView.as_view(template_name="payment.html"), name="payment"),
     path("billing/success/", TemplateView.as_view(template_name="billing_success.html"), name="billing_success"),
