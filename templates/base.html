@@ -512,6 +512,10 @@
             opacity: 0.6;
             color: #000000;
         }
+        .footer-legal a {
+            color: inherit;
+            text-decoration: underline;
+        }
 
         .footer-col:nth-child(2) {
             flex: 0 1 auto;
@@ -904,6 +908,13 @@
                     Avito
                 </a>
             </div>
+        </div>
+        <div class="footer-legal">
+            Исполнитель: Моргунов Ростислав Максимович, ИНН 616514104481.
+            Цены на услуги указаны в рублях РФ.
+            Контакты: <a href="mailto:shotforjob@gmail.com">shotforjob@gmail.com</a>, +7-995-291-25-52.
+            Порядок оформления заказа, оплаты, сроки выполнения и условия возврата — см.
+            <a href="{% url 'policy' %}?doc=offer">Публичную оферту</a>.
         </div>
     </footer>
 

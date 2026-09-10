@@ -301,6 +301,49 @@
         border-color: #0066FF;
     }
 
+    .promo-row {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+    }
+    .promo-input {
+        flex: 1;
+        height: 48px;
+        border-radius: 12px;
+        border: 1.5px solid #e2e2e2;
+        padding: 0 16px;
+        font-size: 15px;
+        font-family: inherit;
+        color: inherit;
+        background: transparent;
+    }
+    .promo-input:focus {
+        outline: none;
+        border-color: #0066FF;
+    }
+    .promo-apply-btn {
+        height: 48px;
+        padding: 0 20px;
+        border-radius: 12px;
+        border: 1.5px solid #0066FF;
+        background: transparent;
+        color: #0066FF;
+        font-weight: 600;
+        font-size: 15px;
+        cursor: pointer;
+        transition: background 0.15s;
+        white-space: nowrap;
+    }
+    .promo-apply-btn:hover { background: #eaf1ff; }
+    .promo-apply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .promo-result {
+        margin-top: 10px;
+        font-size: 14px;
+        display: none;
+    }
+    .promo-result.success { display: block; color: #16a34a; }
+    .promo-result.error { display: block; color: #d92d20; }
+
     .payment-pay-btn {
         margin-top: 8px;
         width: 100%;
@@ -408,6 +451,12 @@
             <!-- Карточки будут отрисованы через JS -->
         </div>
 
+        <div class="promo-row">
+            <input type="text" id="promoInput" class="promo-input" placeholder="Промокод" autocomplete="off" />
+            <button id="promoApplyBtn" class="promo-apply-btn" type="button">Применить</button>
+        </div>
+        <div id="promoResult" class="promo-result"></div>
+
         <button id="paymentPayBtn" class="payment-pay-btn" disabled>
             Выберите пакет
         </button>
@@ -434,6 +483,7 @@
 
     let config = null;
     let selectedPackageId = null;
+    let appliedPromo = null; // { code, discountAmount, finalPrice }
 
     const packagesEl = document.getElementById("paymentPackages");
     const payBtn = document.getElementById("paymentPayBtn");
@@ -442,6 +492,9 @@
     const payanywayForm = document.getElementById("paymentPayanywayForm");
     const balanceSummaryEl = document.getElementById("balanceSummary");
     const balanceSummaryCountEl = document.getElementById("balanceSummaryCount");
+    const promoInput = document.getElementById("promoInput");
+    const promoApplyBtn = document.getElementById("promoApplyBtn");
+    const promoResultEl = document.getElementById("promoResult");
 
     if (!packagesEl) return;
 
@@ -563,6 +616,7 @@
             .querySelectorAll(".tariff-card")
             .forEach((el) => el.classList.remove("selected"));
         cardEl.classList.add("selected");
+        resetPromo();
         updatePayButton();
 
         if (window.matchMedia("(max-width: 768px)").matches && payBtn) {
@@ -576,7 +630,65 @@
     function updatePayButton() {
         const loggedIn = window.PhotoStudioAuth && window.PhotoStudioAuth.isLoggedIn();
         payBtn.disabled = !loggedIn || selectedPackageId === null;
-        payBtn.textContent = selectedPackageId === null ? "Выберите пакет" : "Оплатить";
+        if (selectedPackageId === null) {
+            payBtn.textContent = "Выберите пакет";
+        } else if (appliedPromo) {
+            payBtn.textContent = `Оплатить — ${Math.floor(appliedPromo.finalPrice)} ₽`;
+        } else {
+            payBtn.textContent = "Оплатить";
+        }
+    }
+
+    function showPromoResult(text, type) {
+        promoResultEl.textContent = text;
+        promoResultEl.className = "promo-result " + (type || "error");
+    }
+
+    function resetPromo() {
+        appliedPromo = null;
+        promoResultEl.textContent = "";
+        promoResultEl.className = "promo-result";
+    }
+
+    async function applyPromo() {
+        const code = promoInput.value.trim();
+        if (!code) {
+            showPromoResult("Введите промокод.", "error");
+            return;
+        }
+        if (selectedPackageId === null) {
+            showPromoResult("Сначала выберите пакет.", "error");
+            return;
+        }
+        promoApplyBtn.disabled = true;
+        try {
+            const resp = await window.PhotoStudioAuth.authFetch(`${API_BASE}/promo/check/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code, package_id: selectedPackageId }),
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                appliedPromo = null;
+                showPromoResult(data.message || "Промокод недействителен.", "error");
+            } else {
+                appliedPromo = {
+                    code: data.code,
+                    discountAmount: Number(data.discount_amount),
+                    finalPrice: Number(data.final_price),
+                };
+                showPromoResult(
+                    `Промокод «${data.code}» применён: скидка ${Math.floor(appliedPromo.discountAmount)} ₽.`,
+                    "success"
+                );
+            }
+        } catch (e) {
+            appliedPromo = null;
+            showPromoResult("Ошибка сети. Попробуйте ещё раз.", "error");
+        } finally {
+            promoApplyBtn.disabled = false;
+            updatePayButton();
+        }
     }
 
     async function loadConfig() {
@@ -603,7 +715,10 @@
             const resp = await window.PhotoStudioAuth.authFetch(`${API_BASE}/topup/`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ package_id: selectedPackageId }),
+                body: JSON.stringify({
+                    package_id: selectedPackageId,
+                    promo_code: appliedPromo ? appliedPromo.code : undefined,
+                }),
             });
 
             if (resp.status === 401) {
@@ -617,7 +732,10 @@
                     package_id_required: "Выберите пакет.",
                     invalid_package: "Пакет не найден или отключён.",
                 };
-                showMessage(errors[data.error] || "Не удалось создать платёж.", "error");
+                showMessage(data.message || errors[data.error] || "Не удалось создать платёж.", "error");
+                if (data.error && data.error.startsWith("promo_")) {
+                    resetPromo();
+                }
                 return;
             }
 
@@ -637,7 +755,8 @@
             const pkg = config.packages.find((p) => p.id === selectedPackageId);
             const goalParams = {
                 package_id: selectedPackageId,
-                price: pkg ? (pkg.promo_price ?? pkg.price) : undefined,
+                price: appliedPromo ? appliedPromo.finalPrice : (pkg ? (pkg.promo_price ?? pkg.price) : undefined),
+                promo_code: appliedPromo ? appliedPromo.code : undefined,
             };
             if (window.ymGoal) {
                 window.ymGoal("payment", goalParams, () => payanywayForm.submit());
@@ -657,6 +776,13 @@
             guestNoticeEl.style.display = "block";
         }
         payBtn.addEventListener("click", submitPayment);
+        promoApplyBtn.addEventListener("click", applyPromo);
+        promoInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                applyPromo();
+            }
+        });
         loadConfig();
         loadBalance();
     });

@@ -11,10 +11,64 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from .models import GenerationPackage, Payment, GenerationLedgerEntry
+from .models import GenerationPackage, Payment, GenerationLedgerEntry, PromoCode
 from .payanyway import build_payment_request, verify_pay_url_signature
 from .serializers import PaymentSerializer
 from . import services
+
+
+def _base_amount(package: GenerationPackage, user) -> Decimal:
+    """Цена пакета с учётом акции для первой покупки (без промокода)."""
+    if package.first_purchase_price is not None:
+        already_paid = Payment.objects.filter(user=user, status=Payment.Status.PAID).exists()
+        if not already_paid:
+            return package.first_purchase_price
+    return package.price
+
+
+def _resolve_promo_code(raw_code: str, package: GenerationPackage, user):
+    """Возвращает (PromoCode, None) или (None, error_code). Всегда проверяется заново на сервере."""
+    code = (raw_code or "").strip()
+    if not code:
+        return None, "promo_required"
+    try:
+        promo = PromoCode.objects.get(code__iexact=code)
+    except PromoCode.DoesNotExist:
+        return None, "promo_not_found"
+
+    if not promo.is_active:
+        return None, "promo_inactive"
+    now = timezone.now()
+    if now < promo.valid_from:
+        return None, "promo_not_started"
+    if now > promo.valid_until:
+        return None, "promo_expired"
+    if not promo.applies_to(package):
+        return None, "promo_not_applicable"
+    if promo.max_uses is not None:
+        total_used = Payment.objects.filter(promo_code=promo, status=Payment.Status.PAID).count()
+        if total_used >= promo.max_uses:
+            return None, "promo_limit_reached"
+    if promo.max_uses_per_user is not None:
+        user_used = Payment.objects.filter(
+            promo_code=promo, status=Payment.Status.PAID, user=user
+        ).count()
+        if user_used >= promo.max_uses_per_user:
+            return None, "promo_already_used"
+    return promo, None
+
+
+PROMO_ERROR_MESSAGES = {
+    "promo_required": "Введите промокод.",
+    "invalid_package": "Пакет не найден или отключён.",
+    "promo_not_found": "Промокод не найден.",
+    "promo_inactive": "Промокод отключён.",
+    "promo_not_started": "Этот промокод пока не активен.",
+    "promo_expired": "Срок действия промокода истёк.",
+    "promo_not_applicable": "Промокод не подходит для выбранного тарифа.",
+    "promo_limit_reached": "Промокод больше недоступен — лимит использований исчерпан.",
+    "promo_already_used": "Вы уже использовали этот промокод.",
+}
 
 
 class PollingAnonRateThrottle(AnonRateThrottle):
@@ -51,11 +105,46 @@ class BillingConfigView(APIView):
         return Response({"packages": packages})
 
 
+class PromoCodeCheckView(APIView):
+    """POST /api/billing/promo/check/ — проверяет промокод и считает цену для выбранного пакета."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        package_id = request.data.get("package_id")
+        if not package_id:
+            return Response({"error": "package_id_required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            package = GenerationPackage.objects.get(id=package_id, is_active=True)
+        except GenerationPackage.DoesNotExist:
+            return Response({"error": "invalid_package"}, status=status.HTTP_400_BAD_REQUEST)
+
+        promo, error = _resolve_promo_code(request.data.get("code"), package, request.user)
+        if error:
+            return Response(
+                {"error": error, "message": PROMO_ERROR_MESSAGES.get(error, "Промокод недействителен.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        base_amount = _base_amount(package, request.user)
+        final_amount, discount = promo.compute_discount(base_amount)
+        return Response(
+            {
+                "valid": True,
+                "code": promo.code,
+                "original_price": str(base_amount),
+                "discount_amount": str(discount),
+                "final_price": str(final_amount),
+            }
+        )
+
+
 class CreateTopupView(APIView):
     """
     POST /api/billing/topup/ — создаёт платёж за выбранный пакет генераций и
     возвращает данные для отправки формы на PayAnyWay (MONETA.Assistant).
     Купить можно только готовый пакет — свободная сумма не поддерживается.
+    Опционально принимает promo_code — скидка всегда пересчитывается на сервере.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -70,15 +159,20 @@ class CreateTopupView(APIView):
         except GenerationPackage.DoesNotExist:
             return Response({"error": "invalid_package"}, status=status.HTTP_400_BAD_REQUEST)
 
-        amount = package.price
-        is_promo = False
-        if package.first_purchase_price is not None:
-            already_paid = Payment.objects.filter(
-                user=request.user, status=Payment.Status.PAID
-            ).exists()
-            if not already_paid:
-                amount = package.first_purchase_price
-                is_promo = True
+        amount = _base_amount(package, request.user)
+        is_promo = amount != package.price
+
+        promo_code = None
+        discount_amount = Decimal("0")
+        raw_promo = request.data.get("promo_code")
+        if raw_promo:
+            promo_code, error = _resolve_promo_code(raw_promo, package, request.user)
+            if error:
+                return Response(
+                    {"error": error, "message": PROMO_ERROR_MESSAGES.get(error, "Промокод недействителен.")},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            amount, discount_amount = promo_code.compute_discount(amount)
 
         payment = Payment.objects.create(
             user=request.user,
@@ -86,10 +180,17 @@ class CreateTopupView(APIView):
             amount=amount,
             generations_granted=package.generations,
             is_test=settings.PAYANYWAY_TEST_MODE,
+            promo_code=promo_code,
+            discount_amount=discount_amount,
         )
 
-        promo_suffix = " (акция: первая генерация)" if is_promo else ""
-        description = f"Пакет «{package.title}»{promo_suffix} — {package.generations} генераций"
+        description_bits = [f"Пакет «{package.title}»"]
+        if is_promo:
+            description_bits.append("(акция: первая генерация)")
+        if promo_code:
+            description_bits.append(f"(промокод {promo_code.code})")
+        description_bits.append(f"— {package.generations} генераций")
+        description = " ".join(description_bits)
         req = build_payment_request(payment, description, email=request.user.email)
 
         return Response(

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -26,6 +28,83 @@ class GenerationPackage(models.Model):
         return f"{self.title} – {self.generations} генераций"
 
 
+class PromoCode(models.Model):
+    """Промокод со скидкой на один или несколько пакетов, действующий ограниченный срок."""
+
+    class DiscountType(models.TextChoices):
+        PERCENT = "percent", "Процент от цены"
+        FIXED = "fixed", "Фиксированная сумма"
+
+    code = models.CharField(
+        max_length=32,
+        unique=True,
+        help_text="Промокод, который вводит пользователь (регистр не важен)",
+    )
+    discount_type = models.CharField(max_length=10, choices=DiscountType.choices, default=DiscountType.PERCENT)
+    discount_value = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="Для типа «Процент» — число от 0 до 100, для «Фиксированная сумма» — сумма в рублях",
+    )
+    packages = models.ManyToManyField(
+        GenerationPackage,
+        blank=True,
+        related_name="promo_codes",
+        help_text="К каким тарифам применяется. Пусто — применяется ко всем тарифам.",
+    )
+    valid_from = models.DateTimeField(default=timezone.now, help_text="С какого момента промокод действует")
+    valid_until = models.DateTimeField(help_text="До какого момента промокод действует (обязательно)")
+    max_uses = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Максимум успешных оплат по этому промокоду всего. Пусто — без ограничения.",
+    )
+    max_uses_per_user = models.PositiveIntegerField(
+        default=1,
+        help_text="Сколько раз один пользователь может использовать этот промокод.",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        if self.discount_type == self.DiscountType.PERCENT:
+            return f"{self.code} (-{self.discount_value}%)"
+        return f"{self.code} (-{self.discount_value} ₽)"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        errors = {}
+        if self.discount_type == self.DiscountType.PERCENT:
+            if self.discount_value is not None and not (0 < self.discount_value <= 100):
+                errors["discount_value"] = "Процент скидки должен быть больше 0 и не больше 100."
+        elif self.discount_value is not None and self.discount_value <= 0:
+            errors["discount_value"] = "Сумма скидки должна быть больше 0."
+        if self.valid_from and self.valid_until and self.valid_until <= self.valid_from:
+            errors["valid_until"] = "Дата окончания должна быть позже даты начала."
+        if errors:
+            raise ValidationError(errors)
+
+    def is_valid_now(self) -> bool:
+        now = timezone.now()
+        return self.is_active and self.valid_from <= now <= self.valid_until
+
+    def applies_to(self, package: "GenerationPackage") -> bool:
+        return not self.packages.exists() or self.packages.filter(pk=package.pk).exists()
+
+    def compute_discount(self, base_amount):
+        """Возвращает (итоговая_сумма, размер_скидки), не уходя ниже нуля."""
+        if self.discount_type == self.DiscountType.PERCENT:
+            discount = (base_amount * self.discount_value / Decimal("100")).quantize(Decimal("0.01"))
+        else:
+            discount = self.discount_value
+        discount = min(discount, base_amount)
+        return base_amount - discount, discount
+
+
 class Payment(models.Model):
     """Один счёт = один MNT_TRANSACTION_ID в PayAnyWay (Moneta.ru)."""
 
@@ -49,6 +128,14 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)   # OutSum
     currency = models.CharField(max_length=3, default="RUB")
     generations_granted = models.PositiveIntegerField()
+    promo_code = models.ForeignKey(
+        PromoCode,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="payments",
+    )
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     status = models.CharField(
         max_length=10,
         choices=Status.choices,

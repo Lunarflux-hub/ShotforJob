@@ -7,6 +7,7 @@ app_name = "billing"
 urlpatterns = [
     path("config/", views.BillingConfigView.as_view(), name="config"),
     path("topup/", views.CreateTopupView.as_view(), name="create_topup"),
+    path("promo/check/", views.PromoCodeCheckView.as_view(), name="promo_check"),
     path("payments/", views.PaymentListView.as_view(), name="payment_list"),
     path("payments/<int:pk>/", views.PaymentDetailView.as_view(), name="payment_detail"),
     path("balance/", views.BalanceView.as_view(), name="balance"),
