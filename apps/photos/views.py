@@ -102,28 +102,6 @@ class OrderDetailView(OrderOwnershipMixin, generics.RetrieveAPIView):
         return Order.objects.filter(self.get_owner_filter(self.request))
 
 
-class OrderRetryView(OrderOwnershipMixin, APIView):
-    """
-    POST /api/orders/{id}/retry/
-    «Попробовать снова» — перезапускает генерацию с теми же фото и стилем,
-    не заставляя пользователя перезагружать фото. Генерация уже была списана
-    при создании заказа и повторно не списывается — retry использует ту же
-    оплаченную попытку.
-    """
-
-    def post(self, request, id):
-        order = Order.objects.filter(self.get_owner_filter(request), id=id).first()
-        if not order:
-            return Response({"detail": "Заказ не найден"}, status=status.HTTP_404_NOT_FOUND)
-
-        order.status = Order.Status.PENDING
-        order.error_message = ""
-        order.save(update_fields=["status", "error_message", "updated_at"])
-
-        generate_photo_task.delay(str(order.id))
-        return Response(OrderSerializer(order).data)
-
-
 class OrderListView(OrderOwnershipMixin, generics.ListAPIView):
     """GET /api/orders/ — история заказов текущего пользователя (для ЛК)."""
 

@@ -103,11 +103,7 @@ class UploadedPhoto(models.Model):
 
 
 class GeneratedResult(models.Model):
-    """
-    Результат генерации. Одна заявка может содержать несколько попыток
-    («Попробовать снова» создаёт новую запись, а не перезаписывает старую —
-    так пользователь может сравнить варианты).
-    """
+    """Результат генерации заказа."""
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="results")
     s3_key = models.CharField(max_length=500)

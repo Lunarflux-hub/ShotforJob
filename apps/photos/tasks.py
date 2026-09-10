@@ -13,8 +13,8 @@ from .services.prompt_builder import build_prompt
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=15)
-def generate_photo_task(self, order_id: str):
+@shared_task
+def generate_photo_task(order_id: str):
     """
     Основной пайплайн:
     1. Забираем заказ и загруженные фото.
@@ -70,8 +70,6 @@ def generate_photo_task(self, order_id: str):
         order.status = Order.Status.FAILED
         order.error_message = str(exc)
         order.save(update_fields=["status", "error_message", "updated_at"])
-        # Пробуем повторить (на случай временного сбоя апи)
-        raise self.retry(exc=exc)
 
     except Exception as exc:  # noqa: BLE001
         logger.exception("Неожиданная ошибка генерации для заказа %s", order_id)

@@ -17,12 +17,9 @@
     const downloadBtn = document.getElementById("downloadBtn");
     const errorBlock = document.getElementById("errorBlock");
     const errorText = document.getElementById("errorText");
-    const retryBtn = document.getElementById("retryBtn");
-    const retryFromResultBtn = document.getElementById("retryFromResultBtn");
     const fbCount = document.getElementById("fbCount");
     const formBalanceRow = document.getElementById("formBalanceRow");
 
-    let currentOrderId = null;
     let pollTimer = null;
     let currentBalance = null;
 
@@ -270,7 +267,6 @@
             }
 
             const order = await resp.json();
-            currentOrderId = order.id;
             renderOrder(order);
             startPolling(order.id);
             loadBalance();
@@ -282,40 +278,10 @@
         }
     }
 
-    async function retryOrder() {
-        if (!currentOrderId) return;
-
-        submitBtn.disabled = true;
-        resetResultBlocks();
-        setStatus("pending");
-        spinnerBlock.classList.remove("d-none");
-
-        try {
-            const doFetch = window.PhotoStudioAuth ? window.PhotoStudioAuth.authFetch : fetch;
-            const resp = await doFetch(`${API_BASE}/orders/${currentOrderId}/retry/`, {
-                method: "POST",
-            });
-            if (!resp.ok) throw new Error("Не удалось перезапустить генерацию");
-
-            const order = await resp.json();
-            renderOrder(order);
-            startPolling(order.id);
-        } catch (e) {
-            submitBtn.disabled = false;
-            setStatus("failed");
-            resetResultBlocks();
-            errorText.textContent = e.message;
-            errorBlock.classList.remove("d-none");
-        }
-    }
-
     orderForm.addEventListener("submit", (e) => {
         e.preventDefault();
         createOrder();
     });
-
-    retryBtn.addEventListener("click", retryOrder);
-    retryFromResultBtn.addEventListener("click", retryOrder);
 
     loadStyles();
     loadBalance();
