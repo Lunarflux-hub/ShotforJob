@@ -1,8 +1,14 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
+
+promo_code_validator = RegexValidator(
+    regex=r"^[A-Za-z0-9_-]+$",
+    message="Промокод может содержать только латинские буквы, цифры, «-» и «_».",
+)
 
 
 class GenerationPackage(models.Model):
@@ -38,7 +44,8 @@ class PromoCode(models.Model):
     code = models.CharField(
         max_length=32,
         unique=True,
-        help_text="Промокод, который вводит пользователь (регистр не важен)",
+        validators=[promo_code_validator],
+        help_text="Промокод, который вводит пользователь (регистр не важен). Разрешены латиница, цифры, «-», «_».",
     )
     discount_type = models.CharField(max_length=10, choices=DiscountType.choices, default=DiscountType.PERCENT)
     discount_value = models.DecimalField(

@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 
 from django.conf import settings
@@ -26,11 +27,20 @@ def _base_amount(package: GenerationPackage, user) -> Decimal:
     return package.price
 
 
+# Промокоды создаются только в админке под тем же ограничением (см. promo_code_validator
+# в models.py) — любой ввод вне этого набора символов заведомо не может совпасть ни с одним
+# промокодом, поэтому отсекаем его до похода в БД (белый список — дополнительный рубеж
+# защиты поверх параметризованных запросов ORM, которые и так исключают SQL-инъекции).
+PROMO_CODE_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+
+
 def _resolve_promo_code(raw_code: str, package: GenerationPackage, user):
     """Возвращает (PromoCode, None) или (None, error_code). Всегда проверяется заново на сервере."""
     code = (raw_code or "").strip()
     if not code:
         return None, "promo_required"
+    if not PROMO_CODE_RE.match(code):
+        return None, "promo_not_found"
     try:
         promo = PromoCode.objects.get(code__iexact=code)
     except PromoCode.DoesNotExist:
