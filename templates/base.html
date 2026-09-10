@@ -3,8 +3,47 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="p:domain_verify" content="35932afbb27717bff0973fd77bc6fb97"/>
     <title>{% block title %}ShotForJob{% endblock %}</title>
     {% load static %}
+
+    <!-- Yandex.Metrika counter -->
+    <script type="text/javascript">
+        window.YM_COUNTER_ID = 112452138;
+        (function(m,e,t,r,i,k,a){
+            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+            m[i].l=1*new Date();
+            for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=112452138', 'ym');
+
+        ym(112452138, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/112452138" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+    <!-- /Yandex.Metrika counter -->
+
+    <script>
+        // Отправка цели в Метрику с гарантированным продолжением (на случай блокировщиков рекламы
+        // или задержки ответа) — используется на странице оплаты перед редиректом на СБП.
+        window.ymGoal = function (goalName, params, callback) {
+            var done = false;
+            function finish() {
+                if (done) return;
+                done = true;
+                callback();
+            }
+            if (typeof window.ym === "function" && window.YM_COUNTER_ID) {
+                try {
+                    window.ym(window.YM_COUNTER_ID, "reachGoal", goalName, params, finish);
+                } catch (e) {
+                    finish();
+                }
+            } else {
+                finish();
+            }
+            setTimeout(finish, 300);
+        };
+    </script>
 
     <script>
         (function () {

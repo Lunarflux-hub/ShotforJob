@@ -319,6 +319,12 @@
         opacity: 0.5;
         cursor: not-allowed;
     }
+    .payment-sbp-note {
+        margin-top: 10px;
+        text-align: center;
+        font-size: 13px;
+        opacity: 0.6;
+    }
 
     .payment-message {
         margin-top: 16px;
@@ -405,6 +411,7 @@
         <button id="paymentPayBtn" class="payment-pay-btn" disabled>
             Выберите пакет
         </button>
+        <div class="payment-sbp-note">Оплата осуществляется через СБП (Систему быстрых платежей)</div>
 
         <div id="paymentMessage" class="payment-message"></div>
     </div>
@@ -625,8 +632,18 @@
                 payanywayForm.appendChild(input);
             });
 
-            showMessage("Перенаправляем на страницу оплаты PayAnyWay…", "info");
-            payanywayForm.submit();
+            showMessage("Перенаправляем на страницу оплаты через СБП…", "info");
+
+            const pkg = config.packages.find((p) => p.id === selectedPackageId);
+            const goalParams = {
+                package_id: selectedPackageId,
+                price: pkg ? (pkg.promo_price ?? pkg.price) : undefined,
+            };
+            if (window.ymGoal) {
+                window.ymGoal("payment", goalParams, () => payanywayForm.submit());
+            } else {
+                payanywayForm.submit();
+            }
         } catch (e) {
             showMessage("Ошибка сети. Попробуйте ещё раз.", "error");
         } finally {
