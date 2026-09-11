@@ -77,7 +77,7 @@ def send_support_ticket_email(self, ticket_id: str):
             subject=subject,
             body=text_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[settings.SUPPORT_EMAIL],
+            to=settings.SUPPORT_EMAIL,
             reply_to=[ticket.email],  # чтобы ответить прямо пользователю
         )
         mail.attach_alternative(html_body, "text/html")

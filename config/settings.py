@@ -244,7 +244,9 @@ EMAIL_TIMEOUT = 15
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "noreply@shotforjob.ru")
 
 # Почта поддержки, на которую падают обращения из формы /support
-SUPPORT_EMAIL = env("SUPPORT_EMAIL", default="support@shotforjob.ru")
+# Список через запятую в .env (SUPPORT_EMAIL=a@x.com,b@y.com) — поддержка
+# может получать уведомления на несколько ящиков одновременно.
+SUPPORT_EMAIL = env.list("SUPPORT_EMAIL", default=["support@shotforjob.ru"])
 
 # --- Frontend ---------------------------------------------------------------
 # Используется billing-приложением для редиректа после оплаты
