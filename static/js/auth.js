@@ -109,6 +109,15 @@
         refreshBalance: updateBalanceWidget,
     };
 
+    // ---------- Шапка: стрелка-подсказка над Workstation ----------
+    // Показывается, когда у пользователя есть хотя бы 1 генерация на балансе —
+    // подсказывает, куда нажать дальше, чтобы её использовать.
+    function toggleWorkstationHint(show) {
+        const hint = document.getElementById("workstationArrowHint");
+        if (!hint) return;
+        hint.classList.toggle("is-visible", !!show);
+    }
+
     // ---------- Шапка: бейдж баланса генераций ----------
     async function updateBalanceWidget(attempt = 1) {
         const badge = document.getElementById("balanceBadge");
@@ -117,6 +126,7 @@
 
         if (!window.PhotoStudioAuth.isLoggedIn()) {
             badge.style.display = "none";
+            toggleWorkstationHint(false);
             return;
         }
 
@@ -131,8 +141,10 @@
             if (!resp.ok) throw new Error("bad response");
             const data = await resp.json();
             countEl.textContent = data.balance;
+            toggleWorkstationHint(Number(data.balance) > 0);
         } catch (e) {
             countEl.textContent = "—";
+            toggleWorkstationHint(false);
         }
     }
 
