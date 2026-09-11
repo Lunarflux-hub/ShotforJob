@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from .models import GenerationPackage, Payment, GenerationLedgerEntry, PromoCode
 from .payanyway import build_payment_request, verify_pay_url_signature
 from .serializers import PaymentSerializer
+from .tasks import send_payment_receipt_email
 from . import services
 
 
@@ -310,6 +311,11 @@ def payanyway_result(request):
             kind=GenerationLedgerEntry.Kind.TOPUP,
             payment=payment,
         )
+
+        # on_commit — письмо ставится в очередь, только если транзакция
+        # успешно зафиксирована (иначе Celery-воркер может прочитать ещё
+        # не сохранённый платёж).
+        transaction.on_commit(lambda: send_payment_receipt_email.delay(payment.id))
 
     return HttpResponse("SUCCESS", status=200)
 

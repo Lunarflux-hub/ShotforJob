@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Чек об оплате №{{ payment.id }}</title>
+</head>
+<body style="margin:0; padding:0; background:#efefef; font-family: Arial, Helvetica, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#efefef; padding:32px 0;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+                       style="background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #e5e5e5;">
+                    <tr>
+                        <td style="background:#0066FF; padding:24px 32px;">
+                            <span style="color:#ffffff; font-size:20px; font-weight:700;">ShotForJob</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <h2 style="margin:0 0 16px 0; font-size:18px; color:#000;">Спасибо за оплату!</h2>
+                            <p style="margin:0 0 20px 0; font-size:14px; color:#333;">
+                                Ваш платёж успешно проведён, генерации уже зачислены на баланс.
+                            </p>
+
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                   style="background:#f5f7fb; border-radius:12px; font-size:14px; color:#000;">
+                                <tr>
+                                    <td style="padding:16px 20px; color:#666;">Номер чека</td>
+                                    <td style="padding:16px 20px; text-align:right; font-weight:700;">№{{ payment.id }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:0 20px 16px 20px; color:#666;">Дата оплаты</td>
+                                    <td style="padding:0 20px 16px 20px; text-align:right;">{{ payment.paid_at }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:0 20px 16px 20px; color:#666;">Тариф</td>
+                                    <td style="padding:0 20px 16px 20px; text-align:right;">{{ payment.package.title }}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:0 20px 16px 20px; color:#666;">Генераций начислено</td>
+                                    <td style="padding:0 20px 16px 20px; text-align:right;">{{ payment.generations_granted }}</td>
+                                </tr>
+                                {% if payment.promo_code %}
+                                <tr>
+                                    <td style="padding:0 20px 16px 20px; color:#666;">Промокод</td>
+                                    <td style="padding:0 20px 16px 20px; text-align:right;">{{ payment.promo_code.code }} (-{{ payment.discount_amount }} ₽)</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td style="padding:0 20px 20px 20px; color:#666; font-size:16px;"><strong>Итого оплачено</strong></td>
+                                    <td style="padding:0 20px 20px 20px; text-align:right; font-size:16px;"><strong>{{ payment.amount }} {{ payment.currency }}</strong></td>
+                                </tr>
+                            </table>
+
+                            <p style="margin:24px 0 0 0; font-size:13px; color:#888;">
+                                Если у вас есть вопросы по этому платежу — просто ответьте на это письмо
+                                или напишите в поддержку через форму на сайте.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:16px 32px; background:#f0f0f0; font-size:12px; color:#888;">
+                            Письмо сформировано автоматически после оплаты на shotforjob.com
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

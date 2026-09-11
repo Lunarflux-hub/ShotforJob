@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    "anymail",
 
     "apps.accounts",
     "apps.photos",
@@ -208,14 +209,27 @@ MAX_UPLOAD_SIZE_MB = 15
 # не должны лежать на бэкенде бессрочно.
 UPLOAD_RETENTION_HOURS = env.int("UPLOAD_RETENTION_HOURS", default=24)
 
-# --- Почта (форма поддержки /support) --------------------------------------
-# EMAIL_BACKEND по умолчанию — SMTP. Для локальной разработки без реального
-# SMTP-сервера можно поставить в .env:
+# --- Почта -------------------------------------------------------------------
+# EMAIL_BACKEND по умолчанию — Resend (через django-anymail, HTTP API на 443).
+# Раньше использовался обычный SMTP, но хостинг блокирует исходящие
+# подключения на портах 25/465/587 (стандартная антиспам-политика), из-за
+# этого письма не уходили вообще. HTTP API-провайдер эту проблему обходит
+# полностью — 443 не блокируется. Resend выбран вместо Mailgun/SES, потому
+# что не требует привязки зарубежной карты на бесплатном тарифе.
+#
+# Для локальной разработки без реального провайдера можно поставить в .env:
 #   EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 # тогда письма будут просто печататься в консоль воркера.
 EMAIL_BACKEND = env(
-    "EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend"
+    "EMAIL_BACKEND", default="anymail.backends.resend.EmailBackend"
 )
+
+ANYMAIL = {
+    "RESEND_API_KEY": env("RESEND_API_KEY", default=""),
+}
+
+# SMTP-настройки оставлены как fallback (EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+# в .env вернёт старое поведение, например для локальной разработки).
 EMAIL_HOST = env("SMTP_HOST", default="smtp.yandex.ru")
 EMAIL_PORT = env.int("SMTP_PORT", default=587)
 EMAIL_HOST_USER = env("SMTP_USER", default="")
@@ -226,7 +240,7 @@ EMAIL_USE_TLS = env.bool("SMTP_SECURE", default=True)
 EMAIL_USE_SSL = env.bool("SMTP_USE_SSL", default=False)
 EMAIL_TIMEOUT = 15
 
-# Адрес "от кого" уходят письма (обычно совпадает с SMTP_USER)
+# Адрес "от кого" уходят письма (обычно noreply@<домен, подтверждённый в Resend>)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "noreply@shotforjob.ru")
 
 # Почта поддержки, на которую падают обращения из формы /support
