@@ -112,12 +112,33 @@
     // ---------- Шапка: стрелка-подсказка над Workstation ----------
     // Показывается, когда у пользователя есть хотя бы 1 генерация на балансе —
     // подсказывает, куда нажать дальше, чтобы её использовать. На самой
-    // странице /workstation/ подсказка не нужна — пользователь уже там.
+    // странице /workstation/ подсказка не нужна — пользователь уже там. А как
+    // только он там за эту сессию побывал (нашёл, куда жать), подсказка
+    // больше не мозолит глаза на остальных страницах — sessionStorage, так
+    // что при следующем визите (новая вкладка/после закрытия браузера) она
+    // может показаться снова, если баланс всё ещё положительный.
+    const WORKSTATION_VISITED_KEY = "sfj_workstation_visited";
+
+    function isWorkstationPage() {
+        return location.pathname.replace(/\/+$/, "") === "/workstation";
+    }
+
+    function hasVisitedWorkstation() {
+        try {
+            return sessionStorage.getItem(WORKSTATION_VISITED_KEY) === "1";
+        } catch {
+            return false;
+        }
+    }
+
+    if (isWorkstationPage()) {
+        try { sessionStorage.setItem(WORKSTATION_VISITED_KEY, "1"); } catch {}
+    }
+
     function toggleWorkstationHint(show) {
         const hint = document.getElementById("workstationArrowHint");
         if (!hint) return;
-        const onWorkstationPage = location.pathname.replace(/\/+$/, "") === "/workstation";
-        hint.classList.toggle("is-visible", !!show && !onWorkstationPage);
+        hint.classList.toggle("is-visible", !!show && !isWorkstationPage() && !hasVisitedWorkstation());
     }
 
     // ---------- Шапка: бейдж баланса генераций ----------
