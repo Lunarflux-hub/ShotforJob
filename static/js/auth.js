@@ -111,11 +111,13 @@
 
     // ---------- Шапка: стрелка-подсказка над Workstation ----------
     // Показывается, когда у пользователя есть хотя бы 1 генерация на балансе —
-    // подсказывает, куда нажать дальше, чтобы её использовать.
+    // подсказывает, куда нажать дальше, чтобы её использовать. На самой
+    // странице /workstation/ подсказка не нужна — пользователь уже там.
     function toggleWorkstationHint(show) {
         const hint = document.getElementById("workstationArrowHint");
         if (!hint) return;
-        hint.classList.toggle("is-visible", !!show);
+        const onWorkstationPage = location.pathname.replace(/\/+$/, "") === "/workstation";
+        hint.classList.toggle("is-visible", !!show && !onWorkstationPage);
     }
 
     // ---------- Шапка: бейдж баланса генераций ----------
@@ -308,5 +310,17 @@
         if (yandexBtn) yandexBtn.addEventListener("click", startYandexLogin);
 
         handleYandexRedirect();
+    });
+
+    // Браузер может восстановить страницу из bfcache при переходе назад/вперёд
+    // (например, ушли на /workstation/ и вернулись кнопкой "назад") — в этом
+    // случае DOMContentLoaded и весь код выше повторно не выполняются, и без
+    // этого обработчика бейдж/стрелка остались бы в том состоянии, в котором
+    // страница была отрендерена в прошлый раз, до обновления вручную.
+    window.addEventListener("pageshow", (e) => {
+        if (e.persisted) {
+            updateHeaderWidget();
+            updateBalanceWidget();
+        }
     });
 })();
