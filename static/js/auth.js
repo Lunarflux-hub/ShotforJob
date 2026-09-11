@@ -135,6 +135,13 @@
         try { sessionStorage.setItem(WORKSTATION_VISITED_KEY, "1"); } catch {}
     }
 
+    // После каждой новой покупки генераций подсказку показываем заново —
+    // даже если пользователь уже был на /workstation/ раньше в этой же
+    // сессии, свежекупленные генерации стоит подсветить ещё раз.
+    if (location.pathname.replace(/\/+$/, "") === "/billing/success") {
+        try { sessionStorage.removeItem(WORKSTATION_VISITED_KEY); } catch {}
+    }
+
     function toggleWorkstationHint(show) {
         const hint = document.getElementById("workstationArrowHint");
         if (!hint) return;
