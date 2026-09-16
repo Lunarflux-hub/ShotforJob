@@ -3,7 +3,7 @@ import re
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, User
 from asgiref.sync import sync_to_async
 from django.conf import settings
 
@@ -27,16 +27,54 @@ async def _start_new_order(message: Message, state: FSMContext) -> None:
     await message.answer("Выберите стиль генерации:", reply_markup=keyboards.styles_keyboard(styles))
 
 
+async def _start_new_order_entry(message: Message, tg_user: User, state: FSMContext) -> None:
+    """Email нужен, чтобы отправить готовое фото — просим его один раз, при
+    первом заказе, а не на /start. Дальше меняется только через профиль."""
+    profile = await _current_profile(tg_user)
+    if not profile.user.email:
+        await state.clear()
+        await state.set_state(GenerationFlow.waiting_email)
+        await message.answer(
+            "Для заказа нужен email — на него пришлём готовое фото.\n\nУкажите ваш email:",
+            reply_markup=keyboards.cancel_keyboard(),
+        )
+        return
+    await _start_new_order(message, state)
+
+
 @router.message(Command("new"))
 async def start_new_order(message: Message, state: FSMContext) -> None:
-    await _start_new_order(message, state)
+    await _start_new_order_entry(message, message.from_user, state)
 
 
 @router.callback_query(F.data == keyboards.MENU_NEW_ORDER_CB)
 async def start_new_order_cb(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.edit_reply_markup(reply_markup=None)
-    await _start_new_order(callback.message, state)
+    await _start_new_order_entry(callback.message, callback.from_user, state)
     await callback.answer()
+
+
+@router.message(GenerationFlow.waiting_email, F.text)
+async def receive_order_email(message: Message, state: FSMContext) -> None:
+    profile = await _current_profile(message.from_user)
+    result = await sync_to_async(services.set_user_email)(profile.user, message.text)
+
+    if not result.ok:
+        error_text = (
+            "Похоже, это не email. Проверьте адрес и пришлите ещё раз."
+            if result.error == "invalid"
+            else "Этот email уже используется другим аккаунтом. Укажите другой."
+        )
+        await message.answer(error_text)
+        return
+
+    await message.answer("✅ Email сохранён.")
+    await _start_new_order(message, state)
+
+
+@router.message(GenerationFlow.waiting_email)
+async def receive_order_email_invalid(message: Message) -> None:
+    await message.answer("Пришлите email текстом.")
 
 
 @router.callback_query(GenerationFlow.choosing_style, F.data.startswith("style:"))
