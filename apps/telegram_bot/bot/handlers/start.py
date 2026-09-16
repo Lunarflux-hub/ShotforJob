@@ -1,7 +1,9 @@
+from pathlib import Path
+
 from aiogram import F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
+from aiogram.types import CallbackQuery, FSInputFile, LinkPreviewOptions, Message
 from asgiref.sync import sync_to_async
 from django.conf import settings
 
@@ -13,6 +15,11 @@ router = Router(name="start")
 SUPPORT_LINE = (
     "☁️ <i>Если у вас есть вопросы или возникла проблема — обратитесь в нашу поддержку.</i>"
 )
+
+# Отправляется отдельным сообщением перед текстом меню (не через render()/
+# start_wizard()): картинка — не часть редактируемого «мастера», а разовый
+# баннер-приветствие, редактировать который дальше не нужно.
+WELCOME_IMAGE_PATH = Path(__file__).resolve().parents[2] / "assets" / "welcome.png"
 
 
 def _welcome_text() -> str:
@@ -30,6 +37,9 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     await sync_to_async(services.get_or_create_profile)(
         message.from_user.id, message.from_user.username or ""
     )
+
+    if WELCOME_IMAGE_PATH.exists():
+        await message.answer_photo(FSInputFile(WELCOME_IMAGE_PATH))
 
     await message.answer(
         f"{_welcome_text()}\n\nВыберите действие:\n\n{SUPPORT_LINE}",
