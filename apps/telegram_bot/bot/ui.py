@@ -8,15 +8,22 @@
 редактируем его напрямую. Когда шаг инициирован сообщением от пользователя
 (он написал email/hex-код или прислал фото), редактируем сообщение бота,
 id которого сохранён в FSM-данных предыдущим вызовом render().
+
+Отслеживаемое сообщение может оказаться фото с подписью (например,
+приветственное сообщение с баннером) — тогда редактируем caption, а не text;
+какой вариант нужен, помним в FSM-данных (WIZARD_IS_PHOTO).
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardMarkup, Message
 
 WIZARD_CHAT_ID = "wizard_chat_id"
 WIZARD_MSG_ID = "wizard_msg_id"
+WIZARD_IS_PHOTO = "wizard_is_photo"
 
 
 async def render(
@@ -26,28 +33,51 @@ async def render(
     reply_markup: InlineKeyboardMarkup | None = None,
 ) -> None:
     if isinstance(event, CallbackQuery):
+        msg = event.message
+        is_photo = bool(msg.photo)
         try:
-            await event.message.edit_text(text, reply_markup=reply_markup)
+            if is_photo:
+                await msg.edit_caption(caption=text, reply_markup=reply_markup)
+            else:
+                await msg.edit_text(text, reply_markup=reply_markup)
         except TelegramBadRequest:
-            pass  # текст/клавиатура не изменились — ничего страшного
-        await state.update_data(**{WIZARD_CHAT_ID: event.message.chat.id, WIZARD_MSG_ID: event.message.message_id})
+            # Не смогли отредактировать (например, подпись/текст не влезли) —
+            # шлём новым сообщением, чтобы пользователь не завис на месте.
+            sent = await msg.answer(text, reply_markup=reply_markup)
+            await state.update_data(
+                **{WIZARD_CHAT_ID: sent.chat.id, WIZARD_MSG_ID: sent.message_id, WIZARD_IS_PHOTO: False}
+            )
+            await event.answer()
+            return
+
+        await state.update_data(
+            **{WIZARD_CHAT_ID: msg.chat.id, WIZARD_MSG_ID: msg.message_id, WIZARD_IS_PHOTO: is_photo}
+        )
         await event.answer()
         return
 
     data = await state.get_data()
     chat_id = data.get(WIZARD_CHAT_ID)
     msg_id = data.get(WIZARD_MSG_ID)
+    is_photo = data.get(WIZARD_IS_PHOTO, False)
     if chat_id and msg_id:
         try:
-            await event.bot.edit_message_text(
-                text, chat_id=chat_id, message_id=msg_id, reply_markup=reply_markup
-            )
+            if is_photo:
+                await event.bot.edit_message_caption(
+                    chat_id=chat_id, message_id=msg_id, caption=text, reply_markup=reply_markup
+                )
+            else:
+                await event.bot.edit_message_text(
+                    text, chat_id=chat_id, message_id=msg_id, reply_markup=reply_markup
+                )
             return
         except TelegramBadRequest:
-            pass  # сообщение удалено/устарело — упадём в отправку нового ниже
+            pass  # сообщение удалено/устарело/не влезло — упадём в отправку нового ниже
 
     sent = await event.answer(text, reply_markup=reply_markup)
-    await state.update_data(**{WIZARD_CHAT_ID: sent.chat.id, WIZARD_MSG_ID: sent.message_id})
+    await state.update_data(
+        **{WIZARD_CHAT_ID: sent.chat.id, WIZARD_MSG_ID: sent.message_id, WIZARD_IS_PHOTO: False}
+    )
 
 
 async def start_wizard(
@@ -59,4 +89,21 @@ async def start_wizard(
     """Осознанно отправляет НОВОЕ сообщение (например, старт «Новой генерации»
     из главного меню) и начинает отслеживать его для последующих render()."""
     sent = await message.answer(text, reply_markup=reply_markup)
-    await state.update_data(**{WIZARD_CHAT_ID: sent.chat.id, WIZARD_MSG_ID: sent.message_id})
+    await state.update_data(
+        **{WIZARD_CHAT_ID: sent.chat.id, WIZARD_MSG_ID: sent.message_id, WIZARD_IS_PHOTO: False}
+    )
+
+
+async def start_wizard_photo(
+    message: Message,
+    state: FSMContext,
+    photo_path: Path,
+    caption: str,
+    reply_markup: InlineKeyboardMarkup | None = None,
+) -> None:
+    """Как start_wizard(), но первым сообщением — фото с подписью (например,
+    приветственный баннер). Дальнейшие render() будут редактировать caption."""
+    sent = await message.answer_photo(FSInputFile(photo_path), caption=caption, reply_markup=reply_markup)
+    await state.update_data(
+        **{WIZARD_CHAT_ID: sent.chat.id, WIZARD_MSG_ID: sent.message_id, WIZARD_IS_PHOTO: True}
+    )
