@@ -71,6 +71,21 @@ services:
       redis:
         condition: service_healthy
 
+  bot:
+    build: .
+    restart: unless-stopped
+    command: python manage.py runbot
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    volumes:
+      - media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped

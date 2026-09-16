@@ -13,3 +13,4 @@ openai>=1.40
 google-auth>=2.34
 Pillow>=10.4
 gunicorn>=22.0
+aiogram>=3.13,<4

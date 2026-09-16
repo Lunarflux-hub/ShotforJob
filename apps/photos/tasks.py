@@ -9,6 +9,8 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
 
+from apps.telegram_bot.notifications import notify_order_result
+
 from .models import GeneratedResult, Order
 from .services import storage
 from .services.polza_client import PolzaClientError, generate_image_from_reference
@@ -73,18 +75,21 @@ def generate_photo_task(order_id: str):
 
         if order.user_id and order.user.email:
             send_order_result_email.delay(result.id)
+        notify_order_result(order)
 
     except PolzaClientError as exc:
         logger.warning("Ошибка Polza.ai для заказа %s: %s", order_id, exc)
         order.status = Order.Status.FAILED
         order.error_message = str(exc)
         order.save(update_fields=["status", "error_message", "updated_at"])
+        notify_order_result(order)
 
     except Exception as exc:  # noqa: BLE001
         logger.exception("Неожиданная ошибка генерации для заказа %s", order_id)
         order.status = Order.Status.FAILED
         order.error_message = f"Внутренняя ошибка: {exc}"
         order.save(update_fields=["status", "error_message", "updated_at"])
+        notify_order_result(order)
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=30)

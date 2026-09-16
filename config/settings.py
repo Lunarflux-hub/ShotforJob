@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.social_auth",
     "apps.support",
     "apps.billing",
+    "apps.telegram_bot",
 ]
 
 MIDDLEWARE = [
@@ -171,8 +172,9 @@ GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 YANDEX_OAUTH_CLIENT_ID = env("YANDEX_OAUTH_CLIENT_ID", default="")
 
 # --- Celery --------------------------------------------------------------
-CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = env("REDIS_URL", default="redis://localhost:6379/0")
+REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -252,6 +254,12 @@ SUPPORT_EMAIL = env.list("SUPPORT_EMAIL", default=["support@shotforjob.ru"])
 # Используется billing-приложением для редиректа после оплаты
 # (success/fail страницы). Без слэша на конце.
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:8000")
+
+# --- Telegram-бот ------------------------------------------------------------
+# Токен от @BotFather. Используется и сервисом apps.telegram_bot (long polling,
+# см. management/commands/runbot.py), и apps.photos.tasks (отправка готового
+# фото/ошибки в чат напрямую через Bot API из Celery-таски).
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 
 # --- PayAnyWay / Moneta.ru (оплата пополнения баланса) ----------------------
 # Номер расширенного счёта в системе MONETA.RU (аналог MerchantLogin)

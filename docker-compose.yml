@@ -47,5 +47,15 @@ services:
       - db
       - redis
 
+  bot:
+    build: .
+    command: python manage.py runbot
+    volumes:
+      - .:/app
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+
 volumes:
   pgdata:
