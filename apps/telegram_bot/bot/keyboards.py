@@ -3,16 +3,15 @@
 apps/photos/serializers.py::OrderCreateSerializer — при изменении списка
 там нужно поправить и здесь.
 """
-from aiogram.types import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
-)
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 MAIN_MENU_NEW_ORDER = "🖼 Новая генерация"
 MAIN_MENU_HISTORY = "📜 История заказов"
 MAIN_MENU_BALANCE = "💰 Баланс"
+
+MENU_NEW_ORDER_CB = "menu:new"
+MENU_HISTORY_CB = "menu:history"
+MENU_BALANCE_CB = "menu:balance"
 
 CLOTHING_LABELS = {
     "casual": "Повседневная",
@@ -39,13 +38,16 @@ BACKGROUND_COLOR_PRESETS = {
 SKIP = "skip"
 
 
-def main_menu() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=MAIN_MENU_NEW_ORDER)],
-            [KeyboardButton(text=MAIN_MENU_HISTORY), KeyboardButton(text=MAIN_MENU_BALANCE)],
-        ],
-        resize_keyboard=True,
+def main_menu() -> InlineKeyboardMarkup:
+    """Навигация — кнопки под сообщением, а не постоянная клавиатура снизу."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=MAIN_MENU_NEW_ORDER, callback_data=MENU_NEW_ORDER_CB)],
+            [
+                InlineKeyboardButton(text=MAIN_MENU_HISTORY, callback_data=MENU_HISTORY_CB),
+                InlineKeyboardButton(text=MAIN_MENU_BALANCE, callback_data=MENU_BALANCE_CB),
+            ],
+        ]
     )
 
 

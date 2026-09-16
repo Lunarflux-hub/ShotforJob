@@ -1,8 +1,9 @@
 from aiogram import F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
 from asgiref.sync import sync_to_async
+from django.conf import settings
 
 from .. import keyboards
 from .. import services
@@ -16,10 +17,14 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     await sync_to_async(services.get_or_create_profile)(
         message.from_user.id, message.from_user.username or ""
     )
+    offer_url = f"{settings.FRONTEND_URL}/policy/?doc=offer"
     await message.answer(
         "Привет! Я бот ShotForJob — сгенерирую профессиональное фото по вашим "
-        "снимкам. Выберите действие в меню ниже.",
+        "снимкам.\n\n"
+        f'Перед использованием ознакомьтесь с <a href="{offer_url}">публичной офертой</a>.\n\n'
+        "Выберите действие:",
         reply_markup=keyboards.main_menu(),
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
 

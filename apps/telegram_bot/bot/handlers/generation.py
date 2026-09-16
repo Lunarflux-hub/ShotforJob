@@ -17,9 +17,7 @@ async def _current_profile(user):
     return await sync_to_async(services.get_or_create_profile)(user.id, user.username or "")
 
 
-@router.message(F.text == keyboards.MAIN_MENU_NEW_ORDER)
-@router.message(Command("new"))
-async def start_new_order(message: Message, state: FSMContext) -> None:
+async def _start_new_order(message: Message, state: FSMContext) -> None:
     await state.clear()
     styles = await sync_to_async(services.list_active_styles)()
     if not styles:
@@ -27,6 +25,18 @@ async def start_new_order(message: Message, state: FSMContext) -> None:
         return
     await state.set_state(GenerationFlow.choosing_style)
     await message.answer("Выберите стиль генерации:", reply_markup=keyboards.styles_keyboard(styles))
+
+
+@router.message(Command("new"))
+async def start_new_order(message: Message, state: FSMContext) -> None:
+    await _start_new_order(message, state)
+
+
+@router.callback_query(F.data == keyboards.MENU_NEW_ORDER_CB)
+async def start_new_order_cb(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await _start_new_order(callback.message, state)
+    await callback.answer()
 
 
 @router.callback_query(GenerationFlow.choosing_style, F.data.startswith("style:"))

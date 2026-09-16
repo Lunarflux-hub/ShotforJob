@@ -1,6 +1,6 @@
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, User
 from asgiref.sync import sync_to_async
 
 from .. import keyboards, services
@@ -15,11 +15,9 @@ STATUS_EMOJI = {
 }
 
 
-@router.message(F.text == keyboards.MAIN_MENU_HISTORY)
-@router.message(Command("history"))
-async def show_history(message: Message) -> None:
+async def _show_history(message: Message, tg_user: User) -> None:
     profile = await sync_to_async(services.get_or_create_profile)(
-        message.from_user.id, message.from_user.username or ""
+        tg_user.id, tg_user.username or ""
     )
     orders = await sync_to_async(services.get_recent_orders)(profile.user)
 
@@ -35,6 +33,18 @@ async def show_history(message: Message) -> None:
         )
         markup = keyboards.order_photo_keyboard(order.id) if order.status == "done" else None
         await message.answer(text, reply_markup=markup)
+
+
+@router.message(Command("history"))
+async def show_history(message: Message) -> None:
+    await _show_history(message, message.from_user)
+
+
+@router.callback_query(F.data == keyboards.MENU_HISTORY_CB)
+async def show_history_cb(callback: CallbackQuery) -> None:
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await _show_history(callback.message, callback.from_user)
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("show_photo:"))
