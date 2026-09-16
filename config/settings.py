@@ -260,6 +260,9 @@ FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:8000")
 # см. management/commands/runbot.py), и apps.photos.tasks (отправка готового
 # фото/ошибки в чат напрямую через Bot API из Celery-таски).
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
+# Ссылка на канал с отзывами — кнопка в стартовом меню бота показывается,
+# только если эта переменная задана (пусто — кнопка скрыта).
+TELEGRAM_REVIEWS_CHANNEL_URL = env("TELEGRAM_REVIEWS_CHANNEL_URL", default="")
 
 # --- PayAnyWay / Moneta.ru (оплата пополнения баланса) ----------------------
 # Номер расширенного счёта в системе MONETA.RU (аналог MerchantLogin)

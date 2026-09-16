@@ -4,14 +4,22 @@ apps/photos/serializers.py::OrderCreateSerializer — при изменении 
 там нужно поправить и здесь.
 """
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from django.conf import settings
 
 MAIN_MENU_NEW_ORDER = "🖼 Новая генерация"
 MAIN_MENU_HISTORY = "📜 История заказов"
 MAIN_MENU_BALANCE = "💰 Баланс"
+MAIN_MENU_PROFILE = "👤 Профиль"
+MAIN_MENU_SUPPORT = "🆘 Поддержка"
+MAIN_MENU_REVIEWS = "⭐ Отзывы"
 
 MENU_NEW_ORDER_CB = "menu:new"
 MENU_HISTORY_CB = "menu:history"
 MENU_BALANCE_CB = "menu:balance"
+MENU_PROFILE_CB = "menu:profile"
+MENU_SUPPORT_CB = "menu:support"
+MENU_HOME_CB = "menu:home"
+CHANGE_EMAIL_CB = "profile:change_email"
 
 CLOTHING_LABELS = {
     "casual": "Повседневная",
@@ -40,15 +48,34 @@ SKIP = "skip"
 
 def main_menu() -> InlineKeyboardMarkup:
     """Навигация — кнопки под сообщением, а не постоянная клавиатура снизу."""
+    rows = [
+        [InlineKeyboardButton(text=MAIN_MENU_NEW_ORDER, callback_data=MENU_NEW_ORDER_CB)],
+        [
+            InlineKeyboardButton(text=MAIN_MENU_HISTORY, callback_data=MENU_HISTORY_CB),
+            InlineKeyboardButton(text=MAIN_MENU_BALANCE, callback_data=MENU_BALANCE_CB),
+        ],
+        [
+            InlineKeyboardButton(text=MAIN_MENU_PROFILE, callback_data=MENU_PROFILE_CB),
+            InlineKeyboardButton(text=MAIN_MENU_SUPPORT, callback_data=MENU_SUPPORT_CB),
+        ],
+    ]
+    if settings.TELEGRAM_REVIEWS_CHANNEL_URL:
+        rows.append([InlineKeyboardButton(text=MAIN_MENU_REVIEWS, url=settings.TELEGRAM_REVIEWS_CHANNEL_URL)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def profile_keyboard(*, has_email: bool) -> InlineKeyboardMarkup:
+    change_label = "✏️ Изменить email" if has_email else "✏️ Указать email"
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=MAIN_MENU_NEW_ORDER, callback_data=MENU_NEW_ORDER_CB)],
-            [
-                InlineKeyboardButton(text=MAIN_MENU_HISTORY, callback_data=MENU_HISTORY_CB),
-                InlineKeyboardButton(text=MAIN_MENU_BALANCE, callback_data=MENU_BALANCE_CB),
-            ],
+            [InlineKeyboardButton(text=change_label, callback_data=CHANGE_EMAIL_CB)],
+            [InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)],
         ]
     )
+
+
+def cancel_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]])
 
 
 def styles_keyboard(styles) -> InlineKeyboardMarkup:

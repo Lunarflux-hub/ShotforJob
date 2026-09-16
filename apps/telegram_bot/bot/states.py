@@ -9,3 +9,9 @@ class GenerationFlow(StatesGroup):
     waiting_background_image = State()
     waiting_photos = State()
     confirm = State()
+
+
+class MiscFlow(StatesGroup):
+    waiting_email = State()  # онбординг: email ещё не задан
+    waiting_new_email = State()  # смена email из профиля
+    waiting_support_message = State()

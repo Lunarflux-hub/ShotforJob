@@ -6,16 +6,21 @@ apps.billing.services / apps.photos.tasks, как это делает apps.photo
 """
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
+from django.core.validators import validate_email
 from django.db import transaction
 
 from apps.billing.services import InsufficientBalanceError, get_balance, spend_generation
 from apps.photos.models import Order, PhotoStyle, UploadedPhoto
 from apps.photos.services import storage
 from apps.photos.tasks import generate_photo_task
+from apps.support.serializers import SupportTicketCreateSerializer
+from apps.support.tasks import send_support_ticket_email
 
 from ..models import TelegramProfile
 
@@ -121,3 +126,62 @@ def get_order_photo_url(user, order_id) -> str | None:
 
 def get_user_balance(user) -> int:
     return get_balance(user)
+
+
+@dataclass
+class SetEmailResult:
+    ok: bool
+    error: str | None = None  # "invalid" | "taken"
+
+
+def set_user_email(user, raw_email: str) -> SetEmailResult:
+    email = (raw_email or "").strip().lower()
+    try:
+        validate_email(email)
+    except ValidationError:
+        return SetEmailResult(ok=False, error="invalid")
+
+    if User.objects.exclude(pk=user.pk).filter(email__iexact=email).exists():
+        return SetEmailResult(ok=False, error="taken")
+
+    user.email = email
+    user.save(update_fields=["email"])
+    return SetEmailResult(ok=True)
+
+
+@dataclass
+class ProfileStats:
+    email: str
+    balance: int
+    orders_total: int
+    orders_done: int
+    member_since: datetime.datetime
+
+
+def get_profile_stats(user, profile: TelegramProfile) -> ProfileStats:
+    orders = Order.objects.filter(user=user)
+    return ProfileStats(
+        email=user.email or "",
+        balance=get_balance(user),
+        orders_total=orders.count(),
+        orders_done=orders.filter(status=Order.Status.DONE).count(),
+        member_since=profile.created_at,
+    )
+
+
+@dataclass
+class SupportTicketResult:
+    ok: bool
+    errors: dict | None = None
+
+
+def create_support_ticket(email: str, message: str) -> SupportTicketResult:
+    """Переиспользует ту же валидацию, что и веб-форма /support (см.
+    apps.support.views.SupportTicketCreateView)."""
+    serializer = SupportTicketCreateSerializer(data={"email": email, "message": message})
+    if not serializer.is_valid():
+        return SupportTicketResult(ok=False, errors=serializer.errors)
+
+    ticket = serializer.save(ip_address=None)
+    send_support_ticket_email.delay(str(ticket.id))
+    return SupportTicketResult(ok=True)
