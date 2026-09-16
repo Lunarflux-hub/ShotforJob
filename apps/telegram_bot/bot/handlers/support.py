@@ -3,39 +3,65 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from asgiref.sync import sync_to_async
+from django.conf import settings
 
 from .. import keyboards, services
 from ..states import MiscFlow
+from ..ui import render, start_wizard
 
 router = Router(name="support")
 
+SUPPORT_MENU_TEXT = "🆘 <b>Поддержка</b>\n\nВыберите, что нужно:"
 
-async def _start_support(message: Message, tg_user, state: FSMContext) -> None:
-    profile = await sync_to_async(services.get_or_create_profile)(tg_user.id, tg_user.username or "")
-    if not profile.user.email:
-        await message.answer(
-            "Чтобы связаться с поддержкой, сначала укажите email в профиле.",
-            reply_markup=keyboards.profile_keyboard(has_email=False),
-        )
-        return
-
-    await state.set_state(MiscFlow.waiting_support_message)
-    await message.answer(
-        f"Опишите проблему одним сообщением (минимум 10 символов) — ответим на {profile.user.email}.",
-        reply_markup=keyboards.cancel_keyboard(),
-    )
+FAQ_TEXT = (
+    "❓ <b>Частые вопросы</b>\n\n"
+    "<b>Сколько ждать результат?</b>\n"
+    "Обычно 1–3 минуты после отправки фото.\n\n"
+    "<b>Сколько фото нужно загрузить?</b>\n"
+    "От 1 до 3 фото — чем чётче лицо видно, тем лучше результат.\n\n"
+    "<b>Генерация не удалась — что делать?</b>\n"
+    "Попробуйте создать заказ ещё раз. Если проблема повторяется — напишите в поддержку.\n\n"
+    "<b>Как пополнить баланс генераций?</b>\n"
+    f"Пока только на сайте: {settings.FRONTEND_URL}/workstation\n\n"
+    "<b>Где хранятся мои фото?</b>\n"
+    "Загруженные фото автоматически удаляются в течение суток после генерации."
+)
 
 
 @router.message(Command("support"))
 async def support_command(message: Message, state: FSMContext) -> None:
-    await _start_support(message, message.from_user, state)
+    await start_wizard(message, state, SUPPORT_MENU_TEXT, keyboards.support_menu_keyboard())
 
 
 @router.callback_query(F.data == keyboards.MENU_SUPPORT_CB)
-async def support_cb(callback: CallbackQuery, state: FSMContext) -> None:
-    await callback.message.edit_reply_markup(reply_markup=None)
-    await _start_support(callback.message, callback.from_user, state)
-    await callback.answer()
+async def support_menu_cb(callback: CallbackQuery, state: FSMContext) -> None:
+    await render(callback, state, SUPPORT_MENU_TEXT, keyboards.support_menu_keyboard())
+
+
+@router.callback_query(F.data == keyboards.SUPPORT_FAQ_CB)
+async def support_faq(callback: CallbackQuery, state: FSMContext) -> None:
+    await render(callback, state, FAQ_TEXT, keyboards.faq_keyboard())
+
+
+@router.callback_query(F.data == keyboards.SUPPORT_WRITE_CB)
+async def support_write_start(callback: CallbackQuery, state: FSMContext) -> None:
+    profile = await sync_to_async(services.get_or_create_profile)(
+        callback.from_user.id, callback.from_user.username or ""
+    )
+    if not profile.user.email:
+        await render(
+            callback, state,
+            "Чтобы связаться с поддержкой, сначала укажите email в профиле.",
+            keyboards.profile_keyboard(has_email=False),
+        )
+        return
+
+    await state.set_state(MiscFlow.waiting_support_message)
+    await render(
+        callback, state,
+        f"✍️ Опишите проблему одним сообщением (минимум 10 символов) — ответим на {profile.user.email}.",
+        keyboards.cancel_keyboard(),
+    )
 
 
 @router.message(MiscFlow.waiting_support_message, F.text)
@@ -48,16 +74,17 @@ async def support_message(message: Message, state: FSMContext) -> None:
     if not result.ok:
         errors = result.errors or {}
         detail = next(iter(errors.get("message", [])), None) or "Не удалось отправить обращение, попробуйте ещё раз."
-        await message.answer(detail)
+        await render(message, state, detail, keyboards.cancel_keyboard())
         return
 
     await state.clear()
-    await message.answer(
+    await render(
+        message, state,
         f"Спасибо! Обращение отправлено, ответим на {profile.user.email}.",
-        reply_markup=keyboards.main_menu(),
+        keyboards.back_to_menu_keyboard(),
     )
 
 
 @router.message(MiscFlow.waiting_support_message)
-async def support_message_invalid(message: Message) -> None:
-    await message.answer("Опишите проблему текстом.")
+async def support_message_invalid(message: Message, state: FSMContext) -> None:
+    await render(message, state, "Опишите проблему текстом.", keyboards.cancel_keyboard())

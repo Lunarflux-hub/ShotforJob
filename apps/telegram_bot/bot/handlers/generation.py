@@ -9,6 +9,7 @@ from django.conf import settings
 
 from .. import keyboards, services
 from ..states import GenerationFlow
+from ..ui import render, start_wizard
 
 router = Router(name="generation")
 
@@ -17,40 +18,40 @@ async def _current_profile(user):
     return await sync_to_async(services.get_or_create_profile)(user.id, user.username or "")
 
 
-async def _start_new_order(message: Message, state: FSMContext) -> None:
-    await state.clear()
-    styles = await sync_to_async(services.list_active_styles)()
-    if not styles:
-        await message.answer("Стили сейчас недоступны, попробуйте позже.")
-        return
-    await state.set_state(GenerationFlow.choosing_style)
-    await message.answer("Выберите стиль генерации:", reply_markup=keyboards.styles_keyboard(styles))
-
-
-async def _start_new_order_entry(message: Message, tg_user: User, state: FSMContext) -> None:
+async def _new_order_entry(answer_target: Message, tg_user: User, state: FSMContext) -> None:
     """Email нужен, чтобы отправить готовое фото — просим его один раз, при
-    первом заказе, а не на /start. Дальше меняется только через профиль."""
+    первом заказе, а не на /start. Дальше меняется только через профиль.
+    Сам факт нажатия «Новая генерация» осознанно шлёт новое сообщение —
+    дальше все шаги мастера редактируют именно его."""
     profile = await _current_profile(tg_user)
+
     if not profile.user.email:
-        await state.clear()
         await state.set_state(GenerationFlow.waiting_email)
-        await message.answer(
+        await start_wizard(
+            answer_target,
+            state,
             "Для заказа нужен email — на него пришлём готовое фото.\n\nУкажите ваш email:",
-            reply_markup=keyboards.cancel_keyboard(),
+            keyboards.cancel_keyboard(),
         )
         return
-    await _start_new_order(message, state)
+
+    styles = await sync_to_async(services.list_active_styles)()
+    if not styles:
+        await answer_target.answer("Стили сейчас недоступны, попробуйте позже.")
+        return
+    await state.set_state(GenerationFlow.choosing_style)
+    await start_wizard(answer_target, state, "Выберите стиль генерации:", keyboards.styles_keyboard(styles))
 
 
 @router.message(Command("new"))
 async def start_new_order(message: Message, state: FSMContext) -> None:
-    await _start_new_order_entry(message, message.from_user, state)
+    await _new_order_entry(message, message.from_user, state)
 
 
 @router.callback_query(F.data == keyboards.MENU_NEW_ORDER_CB)
 async def start_new_order_cb(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.edit_reply_markup(reply_markup=None)
-    await _start_new_order_entry(callback.message, callback.from_user, state)
+    await _new_order_entry(callback.message, callback.from_user, state)
     await callback.answer()
 
 
@@ -65,16 +66,29 @@ async def receive_order_email(message: Message, state: FSMContext) -> None:
             if result.error == "invalid"
             else "Этот email уже используется другим аккаунтом. Укажите другой."
         )
-        await message.answer(error_text)
+        await render(message, state, error_text, keyboards.cancel_keyboard())
         return
 
-    await message.answer("✅ Email сохранён.")
-    await _start_new_order(message, state)
+    styles = await sync_to_async(services.list_active_styles)()
+    if not styles:
+        await state.clear()
+        await render(
+            message, state,
+            "✅ Email сохранён.\n\nСтили сейчас недоступны, попробуйте позже.",
+            keyboards.back_to_menu_keyboard(),
+        )
+        return
+    await state.set_state(GenerationFlow.choosing_style)
+    await render(
+        message, state,
+        "✅ Email сохранён.\n\nВыберите стиль генерации:",
+        keyboards.styles_keyboard(styles),
+    )
 
 
 @router.message(GenerationFlow.waiting_email)
-async def receive_order_email_invalid(message: Message) -> None:
-    await message.answer("Пришлите email текстом.")
+async def receive_order_email_invalid(message: Message, state: FSMContext) -> None:
+    await render(message, state, "Пришлите email текстом.", keyboards.cancel_keyboard())
 
 
 @router.callback_query(GenerationFlow.choosing_style, F.data.startswith("style:"))
@@ -87,9 +101,7 @@ async def choose_style(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.update_data(style_id=style.id, style_name=style.name)
     await state.set_state(GenerationFlow.choosing_clothing)
-    await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer("Какая одежда?", reply_markup=keyboards.clothing_keyboard())
-    await callback.answer()
+    await render(callback, state, "Какая одежда?", keyboards.clothing_keyboard())
 
 
 @router.callback_query(GenerationFlow.choosing_clothing, F.data.startswith("clothing:"))
@@ -98,35 +110,35 @@ async def choose_clothing(callback: CallbackQuery, state: FSMContext) -> None:
     clothing = "" if value == keyboards.SKIP else value
     await state.update_data(clothing=clothing)
     await state.set_state(GenerationFlow.choosing_background_type)
-    await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer("Какой фон?", reply_markup=keyboards.background_type_keyboard())
-    await callback.answer()
+    await render(callback, state, "Какой фон?", keyboards.background_type_keyboard())
 
 
 @router.callback_query(GenerationFlow.choosing_background_type, F.data.startswith("bg:"))
 async def choose_background_type(callback: CallbackQuery, state: FSMContext) -> None:
     value = callback.data.split(":", 1)[1]
-    await callback.message.edit_reply_markup(reply_markup=None)
 
     if value == keyboards.SKIP:
         await state.update_data(background_type="", background_color="", background_image_file_id=None)
-        await _ask_for_photos(callback.message, state)
+        await _ask_for_photos(callback, state)
     elif value == "solid":
         await state.update_data(background_type="solid")
         await state.set_state(GenerationFlow.waiting_background_color)
-        await callback.message.answer(
+        await render(
+            callback, state,
             "Выберите цвет фона или пришлите свой hex-код (например #0066FF):",
-            reply_markup=keyboards.background_color_keyboard(),
+            keyboards.background_color_keyboard(),
         )
     elif value == "upload":
         await state.update_data(background_type="upload")
         await state.set_state(GenerationFlow.waiting_background_image)
-        await callback.message.answer("Пришлите фото, которое использовать как фон.")
+        await render(
+            callback, state,
+            "🖼 Пришлите фото, которое использовать как фон.",
+            keyboards.cancel_keyboard(),
+        )
     else:
         await state.update_data(background_type=value, background_color="", background_image_file_id=None)
-        await _ask_for_photos(callback.message, state)
-
-    await callback.answer()
+        await _ask_for_photos(callback, state)
 
 
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -136,16 +148,18 @@ HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 async def choose_background_color_preset(callback: CallbackQuery, state: FSMContext) -> None:
     color = callback.data.split(":", 1)[1]
     await state.update_data(background_color=color, background_image_file_id=None)
-    await callback.message.edit_reply_markup(reply_markup=None)
-    await _ask_for_photos(callback.message, state)
-    await callback.answer()
+    await _ask_for_photos(callback, state)
 
 
 @router.message(GenerationFlow.waiting_background_color, F.text)
 async def choose_background_color_text(message: Message, state: FSMContext) -> None:
     color = (message.text or "").strip()
     if not HEX_COLOR_RE.match(color):
-        await message.answer("Некорректный hex-код. Пример: #0066FF")
+        await render(
+            message, state,
+            "Некорректный hex-код. Пример: #0066FF",
+            keyboards.background_color_keyboard(),
+        )
         return
     await state.update_data(background_color=color, background_image_file_id=None)
     await _ask_for_photos(message, state)
@@ -159,16 +173,17 @@ async def receive_background_image(message: Message, state: FSMContext) -> None:
 
 
 @router.message(GenerationFlow.waiting_background_image)
-async def receive_background_image_invalid(message: Message) -> None:
-    await message.answer("Пришлите изображение фона как фото.")
+async def receive_background_image_invalid(message: Message, state: FSMContext) -> None:
+    await render(message, state, "🖼 Пришлите изображение фона как фото.", keyboards.cancel_keyboard())
 
 
-async def _ask_for_photos(message: Message, state: FSMContext) -> None:
+async def _ask_for_photos(event: CallbackQuery | Message, state: FSMContext) -> None:
     await state.update_data(photo_file_ids=[])
     await state.set_state(GenerationFlow.waiting_photos)
-    await message.answer(
-        f"Пришлите от 1 до {settings.MAX_UPLOAD_PHOTOS} ваших фото (по одному сообщению на фото).",
-        reply_markup=keyboards.photos_keyboard(count=0),
+    await render(
+        event, state,
+        f"📸 Пришлите от 1 до {settings.MAX_UPLOAD_PHOTOS} ваших фото (по одному сообщению на фото).",
+        keyboards.photos_keyboard(count=0),
     )
 
 
@@ -178,18 +193,20 @@ async def receive_photo(message: Message, state: FSMContext) -> None:
     photo_file_ids = list(data.get("photo_file_ids", []))
 
     if len(photo_file_ids) >= settings.MAX_UPLOAD_PHOTOS:
-        await message.answer(
+        await render(
+            message, state,
             f"Уже загружено максимум фото ({settings.MAX_UPLOAD_PHOTOS}). "
             "Нажмите «Готово» или «Отмена».",
-            reply_markup=keyboards.photos_keyboard(count=len(photo_file_ids)),
+            keyboards.photos_keyboard(count=len(photo_file_ids)),
         )
         return
 
     photo_file_ids.append(message.photo[-1].file_id)
     await state.update_data(photo_file_ids=photo_file_ids)
-    await message.answer(
-        f"Фото добавлено ({len(photo_file_ids)}/{settings.MAX_UPLOAD_PHOTOS}).",
-        reply_markup=keyboards.photos_keyboard(count=len(photo_file_ids)),
+    await render(
+        message, state,
+        f"📸 Фото добавлено ({len(photo_file_ids)}/{settings.MAX_UPLOAD_PHOTOS}).",
+        keyboards.photos_keyboard(count=len(photo_file_ids)),
     )
 
 
@@ -202,7 +219,6 @@ async def photos_done(callback: CallbackQuery, state: FSMContext) -> None:
         return
 
     await state.set_state(GenerationFlow.confirm)
-    await callback.message.edit_reply_markup(reply_markup=None)
 
     clothing_label = keyboards.CLOTHING_LABELS.get(data.get("clothing", ""), "не указана")
     background_label = keyboards.BACKGROUND_LABELS.get(data.get("background_type", ""), "не указан")
@@ -213,8 +229,7 @@ async def photos_done(callback: CallbackQuery, state: FSMContext) -> None:
         f"Фото: {len(photo_file_ids)} шт.\n\n"
         "Списать 1 генерацию и запустить создание фото?"
     )
-    await callback.message.answer(summary, reply_markup=keyboards.confirm_keyboard())
-    await callback.answer()
+    await render(callback, state, summary, keyboards.confirm_keyboard())
 
 
 @router.callback_query(GenerationFlow.confirm, F.data == "confirm_yes")
@@ -222,8 +237,8 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext, bot: Bot) ->
     data = await state.get_data()
     style = await sync_to_async(services.get_style)(data["style_id"])
     if style is None:
-        await callback.answer("Стиль больше недоступен", show_alert=True)
         await state.clear()
+        await render(callback, state, "Стиль больше недоступен.", keyboards.main_menu())
         return
 
     profile = await _current_profile(callback.from_user)
@@ -239,8 +254,6 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext, bot: Bot) ->
         buffer = await bot.download(bg_file_id)
         background_image = services.NewOrderPhoto(filename=f"{bg_file_id}.jpg", data=buffer.read())
 
-    await callback.message.edit_reply_markup(reply_markup=None)
-
     result = await sync_to_async(services.create_order_from_bot)(
         user=profile.user,
         style=style,
@@ -254,15 +267,11 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext, bot: Bot) ->
     await state.clear()
 
     if result.error == "insufficient_balance":
-        await callback.message.answer(
+        text = (
             f"Недостаточно генераций на балансе (сейчас: {result.balance}). "
-            f"Пополнить можно на сайте: {settings.FRONTEND_URL}/workstation",
-            reply_markup=keyboards.main_menu(),
+            f"Пополнить можно на сайте: {settings.FRONTEND_URL}/workstation"
         )
     else:
-        await callback.message.answer(
-            "🚀 Заявка принята! Пришлю фото сюда, как только будет готово "
-            "(обычно 1–3 минуты).",
-            reply_markup=keyboards.main_menu(),
-        )
-    await callback.answer()
+        text = "🚀 Заявка принята! Пришлю фото сюда, как только будет готово (обычно 1–3 минуты)."
+
+    await render(callback, state, text, keyboards.main_menu())

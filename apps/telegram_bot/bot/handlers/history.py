@@ -1,9 +1,11 @@
 from aiogram import F, Router
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, User
 from asgiref.sync import sync_to_async
 
 from .. import keyboards, services
+from ..ui import render, start_wizard
 
 router = Router(name="history")
 
@@ -15,36 +17,33 @@ STATUS_EMOJI = {
 }
 
 
-async def _show_history(message: Message, tg_user: User) -> None:
-    profile = await sync_to_async(services.get_or_create_profile)(
-        tg_user.id, tg_user.username or ""
-    )
+async def _history_view(tg_user: User) -> tuple[str, object]:
+    profile = await sync_to_async(services.get_or_create_profile)(tg_user.id, tg_user.username or "")
     orders = await sync_to_async(services.get_recent_orders)(profile.user)
 
     if not orders:
-        await message.answer("У вас пока нет заказов.")
-        return
+        return "У вас пока нет заказов.", keyboards.back_to_menu_keyboard()
 
-    for order in orders:
-        emoji = STATUS_EMOJI.get(order.status, "•")
-        text = (
-            f"{emoji} {order.style.name} — {order.get_status_display()}\n"
-            f"{order.created_at.strftime('%d.%m.%Y %H:%M')}"
-        )
-        markup = keyboards.order_photo_keyboard(order.id) if order.status == "done" else None
-        await message.answer(text, reply_markup=markup)
+    lines = [
+        f"{STATUS_EMOJI.get(order.status, '•')} {order.style.name} — {order.get_status_display()} "
+        f"({order.created_at.strftime('%d.%m.%Y %H:%M')})"
+        for order in orders
+    ]
+    text = "📜 <b>История заказов</b>\n\n" + "\n".join(lines)
+    done_orders = [order for order in orders if order.status == "done"]
+    return text, keyboards.history_keyboard(done_orders)
 
 
 @router.message(Command("history"))
-async def show_history(message: Message) -> None:
-    await _show_history(message, message.from_user)
+async def show_history(message: Message, state: FSMContext) -> None:
+    text, kb = await _history_view(message.from_user)
+    await start_wizard(message, state, text, kb)
 
 
 @router.callback_query(F.data == keyboards.MENU_HISTORY_CB)
-async def show_history_cb(callback: CallbackQuery) -> None:
-    await callback.message.edit_reply_markup(reply_markup=None)
-    await _show_history(callback.message, callback.from_user)
-    await callback.answer()
+async def show_history_cb(callback: CallbackQuery, state: FSMContext) -> None:
+    text, kb = await _history_view(callback.from_user)
+    await render(callback, state, text, kb)
 
 
 @router.callback_query(F.data.startswith("show_photo:"))

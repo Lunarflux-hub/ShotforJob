@@ -6,6 +6,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 
 from .. import keyboards, services
+from ..ui import render
 
 router = Router(name="start")
 
@@ -40,19 +41,11 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 @router.callback_query(F.data == keyboards.MENU_HOME_CB)
 async def go_home(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer("Выберите действие:", reply_markup=keyboards.main_menu())
-    await callback.answer()
+    await render(callback, state, "Выберите действие:", keyboards.main_menu())
 
 
 @router.message(Command("cancel"))
 @router.callback_query(F.data == "cancel")
 async def cmd_cancel(event: Message | CallbackQuery, state: FSMContext) -> None:
+    await render(event, state, "Отменено. Что дальше?", keyboards.main_menu())
     await state.clear()
-    text = "Отменено. Что дальше?"
-    if isinstance(event, CallbackQuery):
-        await event.message.edit_reply_markup(reply_markup=None)
-        await event.message.answer(text, reply_markup=keyboards.main_menu())
-        await event.answer()
-    else:
-        await event.answer(text, reply_markup=keyboards.main_menu())

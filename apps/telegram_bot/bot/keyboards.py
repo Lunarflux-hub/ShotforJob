@@ -20,27 +20,30 @@ MENU_PROFILE_CB = "menu:profile"
 MENU_SUPPORT_CB = "menu:support"
 MENU_HOME_CB = "menu:home"
 CHANGE_EMAIL_CB = "profile:change_email"
+SUPPORT_FAQ_CB = "support:faq"
+SUPPORT_WRITE_CB = "support:write"
 
+# value -> (иконка+подпись для кнопки, подпись без иконки для текстового резюме)
 CLOTHING_LABELS = {
-    "casual": "Повседневная",
-    "formal": "Деловая",
-    "sport": "Спортивная",
-    "jacket": "Пиджак",
-    "shirt": "Рубашка",
+    "casual": "👕 Повседневная",
+    "formal": "🤵 Деловая",
+    "sport": "🏃 Спортивная",
+    "jacket": "🧥 Пиджак",
+    "shirt": "👔 Рубашка",
 }
 
 BACKGROUND_LABELS = {
-    "office": "Офис",
-    "nature": "Природа",
-    "solid": "Однотонный фон",
-    "upload": "Своё изображение",
+    "office": "🏢 Офис",
+    "nature": "🌳 Природа",
+    "solid": "🎨 Однотонный фон",
+    "upload": "🖼 Своё изображение",
 }
 
 BACKGROUND_COLOR_PRESETS = {
-    "white": "#FFFFFF",
-    "gray": "#808080",
-    "blue": "#0066FF",
-    "black": "#000000",
+    "⬜ Белый": "#FFFFFF",
+    "◽ Серый": "#808080",
+    "🟦 Синий": "#0066FF",
+    "⬛ Чёрный": "#000000",
 }
 
 SKIP = "skip"
@@ -64,6 +67,10 @@ def main_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def back_to_menu_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)]])
+
+
 def profile_keyboard(*, has_email: bool) -> InlineKeyboardMarkup:
     change_label = "✏️ Изменить email" if has_email else "✏️ Указать email"
     return InlineKeyboardMarkup(
@@ -71,6 +78,22 @@ def profile_keyboard(*, has_email: bool) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text=change_label, callback_data=CHANGE_EMAIL_CB)],
             [InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)],
         ]
+    )
+
+
+def support_menu_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="❓ FAQ", callback_data=SUPPORT_FAQ_CB)],
+            [InlineKeyboardButton(text="✍️ Написать в поддержку", callback_data=SUPPORT_WRITE_CB)],
+            [InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)],
+        ]
+    )
+
+
+def faq_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="⬅️ Назад", callback_data=MENU_SUPPORT_CB)]]
     )
 
 
@@ -91,7 +114,7 @@ def clothing_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=label, callback_data=f"clothing:{value}")]
         for value, label in CLOTHING_LABELS.items()
     ]
-    rows.append([InlineKeyboardButton(text="Пропустить", callback_data=f"clothing:{SKIP}")])
+    rows.append([InlineKeyboardButton(text="⏭ Пропустить", callback_data=f"clothing:{SKIP}")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -100,14 +123,14 @@ def background_type_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=label, callback_data=f"bg:{value}")]
         for value, label in BACKGROUND_LABELS.items()
     ]
-    rows.append([InlineKeyboardButton(text="Пропустить", callback_data=f"bg:{SKIP}")])
+    rows.append([InlineKeyboardButton(text="⏭ Пропустить", callback_data=f"bg:{SKIP}")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def background_color_keyboard() -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text=name, callback_data=f"bgcolor:{hexval}")]
-        for name, hexval in BACKGROUND_COLOR_PRESETS.items()
+        [InlineKeyboardButton(text=label, callback_data=f"bgcolor:{hexval}")]
+        for label, hexval in BACKGROUND_COLOR_PRESETS.items()
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -129,7 +152,15 @@ def confirm_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def order_photo_keyboard(order_id) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="Показать фото", callback_data=f"show_photo:{order_id}")]]
-    )
+def history_keyboard(done_orders: list) -> InlineKeyboardMarkup:
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"📷 Фото от {order.created_at.strftime('%d.%m')}",
+                callback_data=f"show_photo:{order.id}",
+            )
+        ]
+        for order in done_orders
+    ]
+    rows.append([InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
