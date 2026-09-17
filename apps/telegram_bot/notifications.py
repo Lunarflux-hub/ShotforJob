@@ -9,8 +9,10 @@ Telegram Bot API, не завязанный на его long-polling соеди�
 from __future__ import annotations
 
 import logging
+import socket
 
 import requests
+import urllib3.util.connection as urllib3_connection
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -22,12 +24,25 @@ def _call(method: str, **params) -> None:
     if not settings.TELEGRAM_BOT_TOKEN:
         return
     url = _API_BASE.format(token=settings.TELEGRAM_BOT_TOKEN, method=method)
+
+    # Хостинг блокирует исходящий IPv4 до api.telegram.org (та же причина,
+    # что и в bot/dispatcher.py::build_bot, где для aiogram форсируют IPv6 на
+    # уровне aiohttp-коннектора) — по умолчанию requests/urllib3 сначала
+    # пробуют IPv4-адрес из getaddrinfo и зависают на нём до таймаута, только
+    # потом переходят к IPv6. Форсируем IPv6 явно и только на время этого
+    # запроса — чтобы не тратить время и не задеть остальные исходящие
+    # HTTP-запросы процесса (Polza.ai, Yandex S3, Resend), которым IPv4
+    # нужен как обычно.
+    original_allowed_gai_family = urllib3_connection.allowed_gai_family
+    urllib3_connection.allowed_gai_family = lambda: socket.AF_INET6
     try:
         resp = requests.post(url, data=params, timeout=15)
         if not resp.ok:
             logger.warning("Telegram API %s вернул %s: %s", method, resp.status_code, resp.text)
     except requests.RequestException:
         logger.exception("Не удалось вызвать Telegram API %s", method)
+    finally:
+        urllib3_connection.allowed_gai_family = original_allowed_gai_family
 
 
 def notify_order_result(order) -> None:
