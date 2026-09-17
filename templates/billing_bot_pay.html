@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Оплата — ShotForJob</title>
+<style>
+    body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f5f6fa;
+        color: #1a1a1a;
+    }
+    .box {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 32px 28px;
+        max-width: 360px;
+        width: calc(100% - 32px);
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    .spinner {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto 20px;
+        border: 4px solid #e2e2e2;
+        border-top-color: #0066FF;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    p { line-height: 1.5; }
+    button {
+        margin-top: 16px;
+        background: #0066FF;
+        color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        padding: 14px 24px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+    }
+</style>
+</head>
+<body>
+    <div class="box">
+        <div class="spinner"></div>
+        <p>Перенаправляем на страницу оплаты PayAnyWay…</p>
+        <form id="payanyway-form" action="{{ action_url }}" method="POST">
+            {% for key, value in fields.items %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endfor %}
+            <button type="submit">Перейти к оплате</button>
+        </form>
+    </div>
+    <script>document.getElementById("payanyway-form").submit();</script>
+</body>
+</html>

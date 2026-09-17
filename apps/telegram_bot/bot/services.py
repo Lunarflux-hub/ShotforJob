@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime
 from dataclasses import dataclass
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -15,7 +16,16 @@ from django.core.files.base import ContentFile
 from django.core.validators import validate_email
 from django.db import transaction
 
-from apps.billing.services import InsufficientBalanceError, get_balance, spend_generation
+from apps.billing.models import GenerationPackage
+from apps.billing.services import (
+    InsufficientBalanceError,
+    base_amount_for,
+    create_topup_payment,
+    get_balance,
+    get_payment_status,
+    make_pay_link,
+    spend_generation,
+)
 from apps.photos.models import Order, PhotoStyle, UploadedPhoto
 from apps.photos.services import storage
 from apps.photos.tasks import generate_photo_task
@@ -173,6 +183,59 @@ def get_profile_stats(user, profile: TelegramProfile) -> ProfileStats:
 class SupportTicketResult:
     ok: bool
     errors: dict | None = None
+
+
+@dataclass
+class TariffOption:
+    id: int
+    title: str
+    price: Decimal
+    generations: int
+    is_promo: bool  # спеццена первой покупки
+
+
+def list_tariffs(user) -> list[TariffOption]:
+    options = []
+    for package in GenerationPackage.objects.filter(is_active=True):
+        amount = base_amount_for(package, user)
+        options.append(
+            TariffOption(
+                id=package.id,
+                title=package.title,
+                price=amount,
+                generations=package.generations,
+                is_promo=amount != package.price,
+            )
+        )
+    return options
+
+
+@dataclass
+class CreatePaymentResult:
+    payment_id: int | None
+    pay_url: str | None
+    amount: Decimal | None = None
+    generations: int | None = None
+    error: str | None = None  # "invalid_package"
+
+
+def create_bot_payment(user, package_id: int) -> CreatePaymentResult:
+    try:
+        package = GenerationPackage.objects.get(id=package_id, is_active=True)
+    except GenerationPackage.DoesNotExist:
+        return CreatePaymentResult(payment_id=None, pay_url=None, error="invalid_package")
+
+    payment = create_topup_payment(user, package)
+    return CreatePaymentResult(
+        payment_id=payment.id,
+        pay_url=make_pay_link(payment),
+        amount=payment.amount,
+        generations=payment.generations_granted,
+    )
+
+
+def get_bot_payment_status(user, payment_id: int) -> str | None:
+    return get_payment_status(user, payment_id)
 
 
 def create_support_ticket(email: str, message: str) -> SupportTicketResult:

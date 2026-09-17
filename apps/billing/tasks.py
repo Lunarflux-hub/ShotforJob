@@ -48,3 +48,24 @@ def send_payment_receipt_email(self, payment_id: int):
     except Exception as exc:  # noqa: BLE001 — любая ошибка почтового провайдера должна попадать в retry/лог
         logger.exception("Не удалось отправить чек по платежу %s", payment_id)
         raise self.retry(exc=exc)
+
+
+@shared_task
+def notify_payment_telegram(payment_id: int):
+    """
+    Уведомляет пользователя в Telegram о зачислении генераций после успешной
+    оплаты (см. apps.billing.views.payanyway_result — единственное место,
+    ставящее эту задачу в очередь). Тихо ничего не делает, если платёж пришёл
+    не из бота (нет TelegramProfile) — см. notify_payment_result. Ошибки сети
+    до Telegram там же логируются best-effort, без ретраев — как и у
+    notify_order_result для результата генерации.
+    """
+    from apps.telegram_bot.notifications import notify_payment_result  # локальный импорт — избегаем цикла apps
+
+    try:
+        payment = Payment.objects.select_related("user").get(id=payment_id)
+    except Payment.DoesNotExist:
+        logger.error("Payment %s не найден", payment_id)
+        return
+
+    notify_payment_result(payment)

@@ -267,11 +267,9 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext, bot: Bot) ->
     await state.clear()
 
     if result.error == "insufficient_balance":
-        text = (
-            f"Недостаточно генераций на балансе (сейчас: {result.balance}). "
-            f"Пополнить можно на сайте: {settings.FRONTEND_URL}/workstation"
-        )
-    else:
-        text = "🚀 Заявка принята! Пришлю фото сюда, как только будет готово (обычно 1–3 минуты)."
+        text = f"Недостаточно генераций на балансе (сейчас: {result.balance}). Пополните баланс:"
+        await render(callback, state, text, keyboards.balance_keyboard())
+        return
 
+    text = "🚀 Заявка принята! Пришлю фото сюда, как только будет готово (обычно 1–3 минуты)."
     await render(callback, state, text, keyboards.main_menu())

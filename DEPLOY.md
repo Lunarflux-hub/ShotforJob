@@ -28,6 +28,8 @@
    - `CORS_ALLOW_ALL_ORIGINS=False` и `CORS_ALLOWED_ORIGINS=https://shotforjob.ru` (если фронт на другом домене)
    - `POSTGRES_PASSWORD` — надёжный пароль
    - ключи Polza.ai, Yandex S3, SMTP, PayAnyWay (MNT_ID и код проверки целостности) — боевые, не тестовые
+   - `PAYANYWAY_TEST_MODE=False` — иначе платежи идут в тестовом режиме Moneta.ru
+   - `FRONTEND_URL=https://shotforjob.ru` (без слэша на конце) — на него ссылаются редиректы после оплаты и страница автоотправки формы на PayAnyWay, которую открывает кнопка «Оплатить» в боте
 
 4. В `nginx/nginx.conf` замените `server_name _;` на ваш домен.
 
@@ -46,6 +48,25 @@
    ```bash
    docker compose -f docker-compose.prod.yml logs -f web worker beat
    ```
+
+## PayAnyWay / Moneta.ru
+В личном кабинете moneta.ru (расширенный счёт, тот же MNT_ID, что в `.env`) укажите:
+- **Pay URL** (server-to-server уведомление об оплате, единственное место, где зачисляются генерации): `https://shotforjob.ru/api/billing/payanyway/result/`
+- **Success URL**: `https://shotforjob.ru/api/billing/payanyway/success/`
+- **Fail URL**: `https://shotforjob.ru/api/billing/payanyway/fail/`
+
+Проверить, что всё настроено верно:
+```bash
+docker compose -f docker-compose.prod.yml exec web python manage.py shell -c "
+from django.conf import settings
+print('MNT_ID:', bool(settings.PAYANYWAY_MNT_ID))
+print('INTEGRITY_CODE:', bool(settings.PAYANYWAY_INTEGRITY_CODE))
+print('TEST_MODE:', settings.PAYANYWAY_TEST_MODE)
+print('CURRENCY_CODE:', settings.PAYANYWAY_CURRENCY_CODE)
+print('FRONTEND_URL:', settings.FRONTEND_URL)
+"
+```
+Ожидается: оба `bool`-флага `True` (значения заданы), `TEST_MODE: False`, `CURRENCY_CODE: RUB`, `FRONTEND_URL` — боевой домен по https. Значения самих секретов эта команда не печатает.
 
 ## HTTPS
 Сейчас nginx слушает только 80 порт (http). Проще всего добавить https через certbot:

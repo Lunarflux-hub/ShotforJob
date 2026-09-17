@@ -4,8 +4,9 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -15,17 +16,10 @@ from rest_framework.views import APIView
 from .models import GenerationPackage, Payment, GenerationLedgerEntry, PromoCode
 from .payanyway import build_payment_request, verify_pay_url_signature
 from .serializers import PaymentSerializer
-from .tasks import send_payment_receipt_email
+from .tasks import send_payment_receipt_email, notify_payment_telegram
 from . import services
 
-
-def _base_amount(package: GenerationPackage, user) -> Decimal:
-    """Цена пакета с учётом акции для первой покупки (без промокода)."""
-    if package.first_purchase_price is not None:
-        already_paid = Payment.objects.filter(user=user, status=Payment.Status.PAID).exists()
-        if not already_paid:
-            return package.first_purchase_price
-    return package.price
+_base_amount = services.base_amount_for  # общая с bot-топапом логика акционной цены (services.py)
 
 
 # Промокоды создаются только в админке под тем же ограничением (см. promo_code_validator
@@ -312,10 +306,11 @@ def payanyway_result(request):
             payment=payment,
         )
 
-        # on_commit — письмо ставится в очередь, только если транзакция
+        # on_commit — задачи ставятся в очередь, только если транзакция
         # успешно зафиксирована (иначе Celery-воркер может прочитать ещё
         # не сохранённый платёж).
         transaction.on_commit(lambda: send_payment_receipt_email.delay(payment.id))
+        transaction.on_commit(lambda: notify_payment_telegram.delay(payment.id))
 
     return HttpResponse("SUCCESS", status=200)
 
@@ -332,3 +327,49 @@ def payanyway_fail(request):
     data = request.GET if request.method == "GET" else request.POST
     inv_id = data.get("MNT_TRANSACTION_ID", "")
     return redirect(f"{settings.FRONTEND_URL}/billing/fail?invoice={inv_id}")
+
+
+class BotPayRedirectView(View):
+    """
+    GET-страница для кнопки «Оплатить» из Telegram-бота (см.
+    services.make_pay_link): открывает автоотправляемую форму на PayAnyWay —
+    аналог того, что делает static/js/payment.js на сайте, но без сайтовой
+    авторизации, которой у бот-пользователей нет. Адресация — по id платежа +
+    подписанный токен вместо сессии/логина.
+    """
+
+    def get(self, request, payment_id):
+        if not services.verify_pay_link_token(payment_id, request.GET.get("t", "")):
+            return render(
+                request, "billing_bot_pay_error.html",
+                {"message": "Ссылка недействительна или устарела. Начните оплату заново в боте."},
+                status=400,
+            )
+
+        try:
+            payment = Payment.objects.select_related("package", "user").get(id=payment_id)
+        except Payment.DoesNotExist:
+            return render(
+                request, "billing_bot_pay_error.html", {"message": "Платёж не найден."}, status=404
+            )
+
+        if payment.status == Payment.Status.PAID:
+            return render(
+                request, "billing_bot_pay_error.html",
+                {"message": "Оплата уже получена — вернитесь в Telegram, генерации уже зачислены."},
+            )
+        if payment.status in (Payment.Status.FAILED, Payment.Status.EXPIRED):
+            return render(
+                request, "billing_bot_pay_error.html",
+                {"message": "Срок действия ссылки истёк. Начните оплату заново в боте."},
+            )
+
+        description = (
+            f"Пакет «{payment.package.title}»" if payment.package else "Пополнение баланса"
+        ) + f" — {payment.generations_granted} генераций"
+        req = build_payment_request(payment, description, email=payment.user.email or None)
+
+        return render(
+            request, "billing_bot_pay.html",
+            {"action_url": req["action_url"], "fields": req["fields"]},
+        )

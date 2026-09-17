@@ -19,6 +19,7 @@ MENU_BALANCE_CB = "menu:balance"
 MENU_PROFILE_CB = "menu:profile"
 MENU_SUPPORT_CB = "menu:support"
 MENU_HOME_CB = "menu:home"
+MENU_TOPUP_CB = "menu:topup"
 CHANGE_EMAIL_CB = "profile:change_email"
 SUPPORT_FAQ_CB = "support:faq"
 SUPPORT_WRITE_CB = "support:write"
@@ -71,6 +72,44 @@ def back_to_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)]])
 
 
+def balance_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Пополнить баланс", callback_data=MENU_TOPUP_CB)],
+            [InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)],
+        ]
+    )
+
+
+def _format_price(price) -> str:
+    return f"{price:.0f} ₽" if price == price.to_integral_value() else f"{price} ₽"
+
+
+def tariffs_keyboard(tariffs) -> InlineKeyboardMarkup:
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"{tariff.title} — {tariff.generations} ген. — {_format_price(tariff.price)}"
+                + (" 🎁" if tariff.is_promo else ""),
+                callback_data=f"topup:pkg:{tariff.id}",
+            )
+        ]
+        for tariff in tariffs
+    ]
+    rows.append([InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def payment_keyboard(pay_url: str, payment_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Оплатить", url=pay_url)],
+            [InlineKeyboardButton(text="🔄 Проверить оплату", callback_data=f"topup:check:{payment_id}")],
+            [InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)],
+        ]
+    )
+
+
 def profile_keyboard(*, has_email: bool) -> InlineKeyboardMarkup:
     change_label = "✏️ Изменить email" if has_email else "✏️ Указать email"
     return InlineKeyboardMarkup(
@@ -84,8 +123,10 @@ def profile_keyboard(*, has_email: bool) -> InlineKeyboardMarkup:
 def support_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="❓ FAQ", callback_data=SUPPORT_FAQ_CB)],
-            [InlineKeyboardButton(text="✍️ Написать в поддержку", callback_data=SUPPORT_WRITE_CB)],
+            [
+                InlineKeyboardButton(text="❓ FAQ", callback_data=SUPPORT_FAQ_CB),
+                InlineKeyboardButton(text="✍️ Написать в поддержку", callback_data=SUPPORT_WRITE_CB),
+            ],
             [InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)],
         ]
     )

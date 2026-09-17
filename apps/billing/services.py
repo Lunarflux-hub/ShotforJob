@@ -9,9 +9,19 @@ GenerationLedgerEntry — insert-only, у него нет "последней с
 списания (новая строка просто добавляется рядом). Поэтому материализованный
 UserBalance — обязателен: именно его строку мы лочим.
 """
+from decimal import Decimal
+
+from django.conf import settings
+from django.core import signing
 from django.db import transaction
 
-from .models import GenerationLedgerEntry, UserBalance
+from .models import GenerationLedgerEntry, GenerationPackage, Payment, UserBalance
+
+# Соль для подписи ссылки оплаты (см. make_pay_link/verify_pay_link_token) —
+# ссылка уходит пользователю в Telegram без сайтовой авторизации (у
+# tg_-пользователей её нет), поэтому платёж адресуется по id + подписанному
+# токену вместо сессии.
+PAY_LINK_SALT = "billing.pay_link"
 
 
 class InsufficientBalanceError(Exception):
@@ -83,3 +93,46 @@ def spend_generation(user, order, amount: int = 1) -> UserBalance:
         order=order,
     )
     return balance
+
+
+def base_amount_for(package: GenerationPackage, user) -> Decimal:
+    """Цена пакета с учётом акции для первой покупки (без промокода) —
+    общая для веб-топапа (views.CreateTopupView) и бот-топапа."""
+    if package.first_purchase_price is not None:
+        already_paid = Payment.objects.filter(user=user, status=Payment.Status.PAID).exists()
+        if not already_paid:
+            return package.first_purchase_price
+    return package.price
+
+
+def create_topup_payment(user, package: GenerationPackage) -> Payment:
+    """Создаёт Payment(status=pending) на полную/акционную цену пакета —
+    без промокода (промокоды пока доступны только на сайте)."""
+    amount = base_amount_for(package, user)
+    return Payment.objects.create(
+        user=user,
+        package=package,
+        amount=amount,
+        generations_granted=package.generations,
+        is_test=settings.PAYANYWAY_TEST_MODE,
+    )
+
+
+def make_pay_link(payment: Payment) -> str:
+    """Подписанная ссылка на views.BotPayRedirectView — открывает
+    автоотправляемую форму на PayAnyWay без сайтовой авторизации."""
+    token = signing.dumps(payment.id, salt=PAY_LINK_SALT)
+    return f"{settings.FRONTEND_URL}/billing/pay/{payment.id}/?t={token}"
+
+
+def verify_pay_link_token(payment_id: int, token: str, max_age: int = 24 * 3600) -> bool:
+    try:
+        value = signing.loads(token, salt=PAY_LINK_SALT, max_age=max_age)
+    except signing.BadSignature:
+        return False
+    return value == payment_id
+
+
+def get_payment_status(user, payment_id: int) -> str | None:
+    payment = Payment.objects.filter(id=payment_id, user=user).first()
+    return payment.status if payment else None

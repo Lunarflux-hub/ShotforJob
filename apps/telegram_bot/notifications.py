@@ -61,3 +61,29 @@ def notify_order_result(order) -> None:
                 "Попробуйте создать заказ заново из меню бота."
             ),
         )
+
+
+def notify_payment_result(payment) -> None:
+    """
+    Уведомление в Telegram об успешном пополнении баланса. Вызывается из
+    apps.billing.tasks.notify_payment_telegram (Celery-задача, поставленная в
+    очередь из apps.billing.views.payanyway_result — сам server-to-server
+    callback от PayAnyWay не должен ждать Telegram API). Тихо ничего не
+    делает, если платёж пришёл не из бота (нет TelegramProfile) — значит,
+    пользователь пополнял баланс с сайта.
+    """
+    profile = getattr(payment.user, "telegram_profile", None) if payment.user_id else None
+    if profile is None:
+        return
+
+    from apps.billing.services import get_balance  # локальный импорт — избегаем цикла apps
+
+    balance = get_balance(payment.user)
+    _call(
+        "sendMessage",
+        chat_id=profile.telegram_id,
+        text=(
+            f"✅ Оплата получена! Начислено {payment.generations_granted} ген.\n"
+            f"Текущий баланс: {balance} ген."
+        ),
+    )

@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 
 from .. import keyboards, services
-from ..ui import render, start_wizard, start_wizard_photo
+from ..ui import finish_flow, render, return_to_parent, start_wizard, start_wizard_photo
 
 router = Router(name="start")
 
@@ -51,5 +51,8 @@ async def go_home(callback: CallbackQuery, state: FSMContext) -> None:
 @router.message(Command("cancel"))
 @router.callback_query(F.data == "cancel")
 async def cmd_cancel(event: Message | CallbackQuery, state: FSMContext) -> None:
-    await render(event, state, "Отменено. Что дальше?", keyboards.main_menu())
-    await state.clear()
+    text = "Отменено. Что дальше?"
+    handled = await return_to_parent(event, state, text, keyboards.main_menu())
+    if not handled:
+        await render(event, state, text, keyboards.main_menu())
+    await finish_flow(state)

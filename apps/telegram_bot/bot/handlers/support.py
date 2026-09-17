@@ -3,7 +3,6 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from asgiref.sync import sync_to_async
-from django.conf import settings
 
 from .. import keyboards, services
 from ..states import MiscFlow
@@ -22,7 +21,7 @@ FAQ_TEXT = (
     "<b>Генерация не удалась — что делать?</b>\n"
     "Попробуйте создать заказ ещё раз. Если проблема повторяется — напишите в поддержку.\n\n"
     "<b>Как пополнить баланс генераций?</b>\n"
-    f"Пока только на сайте: {settings.FRONTEND_URL}/workstation\n\n"
+    "В разделе «💰 Баланс» → «💳 Пополнить баланс» — выберите пакет и оплатите по ссылке.\n\n"
     "<b>Где хранятся мои фото?</b>\n"
     "Загруженные фото автоматически удаляются в течение суток после генерации."
 )
