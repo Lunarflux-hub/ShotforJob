@@ -1,6 +1,6 @@
 import re
 
-from aiogram import Bot, F, Router
+from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message, User
@@ -19,19 +19,21 @@ async def _current_profile(user):
 
 
 async def _new_order_entry(answer_target: Message, tg_user: User, state: FSMContext) -> None:
-    """Email нужен, чтобы отправить готовое фото — просим его один раз, при
-    первом заказе, а не на /start. Дальше меняется только через профиль.
-    Сам факт нажатия «Новая генерация» осознанно шлёт новое сообщение —
-    дальше все шаги мастера редактируют именно его."""
+    """Сам факт нажатия «Новая генерация» осознанно шлёт новое сообщение —
+    дальше все шаги мастера редактируют именно его. Баланс проверяем сразу,
+    до выбора стиля/одежды/фото: если пополнять всё равно придётся, пусть
+    пользователь увидит кнопку оплаты как можно раньше, а не после того как
+    заполнит всю анкету. Email просим не здесь, а перед самым запуском
+    генерации (см. _finalize_order) — он не нужен раньше и не должен стоять
+    между пользователем и оплатой."""
     profile = await _current_profile(tg_user)
 
-    if not profile.user.email:
-        await state.set_state(GenerationFlow.waiting_email)
+    balance = await sync_to_async(services.get_user_balance)(profile.user)
+    if balance < 1:
         await start_wizard(
-            answer_target,
-            state,
-            "Для заказа нужен email — на него пришлём готовое фото.\n\nУкажите ваш email:",
-            keyboards.cancel_keyboard(),
+            answer_target, state,
+            f"Недостаточно генераций на балансе (сейчас: {balance}). Пополните баланс:",
+            keyboards.balance_keyboard(),
         )
         return
 
@@ -69,21 +71,7 @@ async def receive_order_email(message: Message, state: FSMContext) -> None:
         await render(message, state, error_text, keyboards.cancel_keyboard())
         return
 
-    styles = await sync_to_async(services.list_active_styles)()
-    if not styles:
-        await state.clear()
-        await render(
-            message, state,
-            "✅ Email сохранён.\n\nСтили сейчас недоступны, попробуйте позже.",
-            keyboards.back_to_menu_keyboard(),
-        )
-        return
-    await state.set_state(GenerationFlow.choosing_style)
-    await render(
-        message, state,
-        "✅ Email сохранён.\n\nВыберите стиль генерации:",
-        keyboards.styles_keyboard(styles),
-    )
+    await _finalize_order(message, state, message.from_user)
 
 
 @router.message(GenerationFlow.waiting_email)
@@ -233,25 +221,53 @@ async def photos_done(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.callback_query(GenerationFlow.confirm, F.data == "confirm_yes")
-async def confirm_order(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+async def confirm_order(callback: CallbackQuery, state: FSMContext) -> None:
+    await _finalize_order(callback, state, callback.from_user)
+
+
+async def _finalize_order(event: CallbackQuery | Message, state: FSMContext, tg_user: User) -> None:
+    """Общий хвост мастера — вызывается и по кнопке «Сгенерировать», и сразу
+    после того, как пользователь прислал email (см. receive_order_email).
+    Проверяем баланс раньше почты: если платить всё равно придётся, не
+    заставляем сначала вводить email — почту спрашиваем последней, прямо
+    перед списанием, и только если её ещё нет."""
+    profile = await _current_profile(tg_user)
     data = await state.get_data()
+
     style = await sync_to_async(services.get_style)(data["style_id"])
     if style is None:
         await state.clear()
-        await render(callback, state, "Стиль больше недоступен.", keyboards.main_menu())
+        await render(event, state, "Стиль больше недоступен.", keyboards.main_menu())
         return
 
-    profile = await _current_profile(callback.from_user)
+    balance = await sync_to_async(services.get_user_balance)(profile.user)
+    if balance < 1:
+        await state.clear()
+        await render(
+            event, state,
+            f"Недостаточно генераций на балансе (сейчас: {balance}). Пополните баланс:",
+            keyboards.balance_keyboard(),
+        )
+        return
+
+    if not profile.user.email:
+        await state.set_state(GenerationFlow.waiting_email)
+        await render(
+            event, state,
+            "Для отправки результата нужен email — на него пришлём готовое фото.\n\nУкажите ваш email:",
+            keyboards.cancel_keyboard(),
+        )
+        return
 
     photos = []
     for file_id in data.get("photo_file_ids", []):
-        buffer = await bot.download(file_id)
+        buffer = await event.bot.download(file_id)
         photos.append(services.NewOrderPhoto(filename=f"{file_id}.jpg", data=buffer.read()))
 
     background_image = None
     bg_file_id = data.get("background_image_file_id")
     if bg_file_id:
-        buffer = await bot.download(bg_file_id)
+        buffer = await event.bot.download(bg_file_id)
         background_image = services.NewOrderPhoto(filename=f"{bg_file_id}.jpg", data=buffer.read())
 
     result = await sync_to_async(services.create_order_from_bot)(
@@ -267,9 +283,12 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext, bot: Bot) ->
     await state.clear()
 
     if result.error == "insufficient_balance":
+        # Баланс проверили выше, но кто-то мог потратить его между проверкой
+        # и списанием (гонка, например второй параллельный заказ) — атомарная
+        # проверка внутри create_order_from_bot страхует от двойного списания.
         text = f"Недостаточно генераций на балансе (сейчас: {result.balance}). Пополните баланс:"
-        await render(callback, state, text, keyboards.balance_keyboard())
+        await render(event, state, text, keyboards.balance_keyboard())
         return
 
     text = "🚀 Заявка принята! Пришлю фото сюда, как только будет готово (обычно 1–3 минуты)."
-    await render(callback, state, text, keyboards.main_menu())
+    await render(event, state, text, keyboards.main_menu())

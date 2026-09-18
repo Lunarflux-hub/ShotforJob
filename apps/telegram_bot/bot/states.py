@@ -2,7 +2,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 
 class GenerationFlow(StatesGroup):
-    waiting_email = State()  # email ещё не задан — спрашиваем перед выбором стиля
+    waiting_email = State()  # email ещё не задан — спрашиваем последним, прямо перед списанием генерации
     choosing_style = State()
     choosing_clothing = State()
     choosing_background_type = State()
