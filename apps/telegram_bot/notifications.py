@@ -20,6 +20,15 @@ logger = logging.getLogger(__name__)
 _API_BASE = "https://api.telegram.org/bot{token}/{method}"
 
 
+def _menu_home_markup() -> str:
+    """JSON для reply_markup сырого вызова Bot API (см. _call) — тот же
+    инлайн-кнопка «В меню», что и в обычных ответах бота (bot/keyboards.py),
+    просто отправляется не через aiogram, а напрямую HTTP-запросом."""
+    from .bot import keyboards  # локальный импорт — избегаем цикла apps на старте
+
+    return keyboards.back_to_menu_keyboard().model_dump_json(exclude_none=True)
+
+
 def _call(method: str, **params) -> None:
     if not settings.TELEGRAM_BOT_TOKEN:
         return
@@ -56,16 +65,24 @@ def notify_order_result(order) -> None:
 
     from apps.photos.models import Order  # локальный импорт — избегаем цикла apps
 
+    menu_markup = _menu_home_markup()
+
     if order.status == Order.Status.DONE:
         result = order.results.first()
         if result is None:
-            _call("sendMessage", chat_id=profile.telegram_id, text="Готово, но результат не найден — обратитесь в поддержку.")
+            _call(
+                "sendMessage",
+                chat_id=profile.telegram_id,
+                text="Готово, но результат не найден — обратитесь в поддержку.",
+                reply_markup=menu_markup,
+            )
             return
         _call(
             "sendPhoto",
             chat_id=profile.telegram_id,
             photo=result.file_url,
             caption="✅ Ваше фото готово!",
+            reply_markup=menu_markup,
         )
     elif order.status == Order.Status.FAILED:
         _call(
@@ -75,6 +92,7 @@ def notify_order_result(order) -> None:
                 "❌ Не удалось сгенерировать фото. "
                 "Попробуйте создать заказ заново из меню бота."
             ),
+            reply_markup=menu_markup,
         )
 
 
