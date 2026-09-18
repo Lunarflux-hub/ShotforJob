@@ -193,6 +193,19 @@ def confirm_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def order_result_keyboard(order_id) -> InlineKeyboardMarkup:
+    """Кнопки под сообщением с готовым результатом (см.
+    apps.telegram_bot.notifications.notify_order_result) — «Скинуть ещё раз»
+    работает и спустя долгое время: заново берёт presigned-ссылку на S3, а не
+    полагается на то, что файл ещё жив в кеше Telegram."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📷 Скинуть ещё раз", callback_data=f"show_photo:{order_id}")],
+            [InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)],
+        ]
+    )
+
+
 def history_keyboard(done_orders: list) -> InlineKeyboardMarkup:
     rows = [
         [

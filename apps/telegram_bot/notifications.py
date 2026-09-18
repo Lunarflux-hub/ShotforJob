@@ -29,6 +29,17 @@ def _menu_home_markup() -> str:
     return keyboards.back_to_menu_keyboard().model_dump_json(exclude_none=True)
 
 
+def _order_result_markup(order_id) -> str:
+    """Как _menu_home_markup(), но добавляет кнопку «Скинуть ещё раз» — она
+    живёт на сообщении в чате сколько угодно долго и работает даже спустя
+    месяцы: обработчик show_photo (bot/handlers/history.py) при нажатии
+    заново берёт presigned-ссылку на S3, а не переотправляет закешированный
+    в Telegram файл."""
+    from .bot import keyboards
+
+    return keyboards.order_result_keyboard(order_id).model_dump_json(exclude_none=True)
+
+
 def _call(method: str, **params) -> None:
     if not settings.TELEGRAM_BOT_TOKEN:
         return
@@ -65,8 +76,6 @@ def notify_order_result(order) -> None:
 
     from apps.photos.models import Order  # локальный импорт — избегаем цикла apps
 
-    menu_markup = _menu_home_markup()
-
     if order.status == Order.Status.DONE:
         result = order.results.first()
         if result is None:
@@ -74,7 +83,7 @@ def notify_order_result(order) -> None:
                 "sendMessage",
                 chat_id=profile.telegram_id,
                 text="Готово, но результат не найден — обратитесь в поддержку.",
-                reply_markup=menu_markup,
+                reply_markup=_menu_home_markup(),
             )
             return
         _call(
@@ -82,7 +91,7 @@ def notify_order_result(order) -> None:
             chat_id=profile.telegram_id,
             photo=result.file_url,
             caption="✅ Ваше фото готово!",
-            reply_markup=menu_markup,
+            reply_markup=_order_result_markup(order.id),
         )
     elif order.status == Order.Status.FAILED:
         _call(
@@ -92,7 +101,7 @@ def notify_order_result(order) -> None:
                 "❌ Не удалось сгенерировать фото. "
                 "Попробуйте создать заказ заново из меню бота."
             ),
-            reply_markup=menu_markup,
+            reply_markup=_menu_home_markup(),
         )
 
 
