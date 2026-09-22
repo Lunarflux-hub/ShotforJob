@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import GeneratedResult, Order, PhotoStyle, UploadedPhoto
+from .models import GeneratedResult, Order, OrderReview, PhotoStyle, UploadedPhoto
 
 
 @admin.register(PhotoStyle)
@@ -24,3 +24,15 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ["id", "style", "status", "user", "anon_id", "created_at"]
     list_filter = ["status", "style"]
     inlines = [UploadedPhotoInline, GeneratedResultInline]
+
+
+@admin.register(OrderReview)
+class OrderReviewAdmin(admin.ModelAdmin):
+    list_display = ["order", "rating", "source", "short_comment", "created_at"]
+    list_filter = ["rating", "source"]
+    search_fields = ["comment", "order__id"]
+    raw_id_fields = ["order"]
+
+    @admin.display(description="Комментарий")
+    def short_comment(self, obj):
+        return obj.comment[:80]

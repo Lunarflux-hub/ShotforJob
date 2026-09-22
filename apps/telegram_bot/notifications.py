@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 _API_BASE = "https://api.telegram.org/bot{token}/{method}"
 
+# Подпись под готовым фото. После оценки (bot/handlers/review.py) подпись
+# редактируется — к ней дописывается оценка, поэтому текст вынесен сюда.
+ORDER_RESULT_CAPTION = "✅ Ваше фото готово!"
+
 
 def _menu_home_markup() -> str:
     """JSON для reply_markup сырого вызова Bot API (см. _call) — тот же
@@ -30,7 +34,8 @@ def _menu_home_markup() -> str:
 
 
 def _order_result_markup(order_id) -> str:
-    """Как _menu_home_markup(), но добавляет кнопку «Скинуть ещё раз» — она
+    """Как _menu_home_markup(), но добавляет звёзды для отзыва (см.
+    bot/handlers/review.py) и кнопку «Скинуть ещё раз» — она
     живёт на сообщении в чате сколько угодно долго и работает даже спустя
     месяцы: обработчик show_photo (bot/handlers/history.py) при нажатии
     заново берёт presigned-ссылку на S3, а не переотправляет закешированный
@@ -90,7 +95,7 @@ def notify_order_result(order) -> None:
             "sendPhoto",
             chat_id=profile.telegram_id,
             photo=result.file_url,
-            caption="✅ Ваше фото готово!",
+            caption=f"{ORDER_RESULT_CAPTION}\n\nОцените результат — это поможет нам стать лучше:",
             reply_markup=_order_result_markup(order.id),
         )
     elif order.status == Order.Status.FAILED:

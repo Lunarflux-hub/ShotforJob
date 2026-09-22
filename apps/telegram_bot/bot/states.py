@@ -15,3 +15,4 @@ class GenerationFlow(StatesGroup):
 class MiscFlow(StatesGroup):
     waiting_new_email = State()  # смена email из профиля
     waiting_support_message = State()
+    waiting_review_comment = State()  # комментарий к оценке результата (bot/handlers/review.py)

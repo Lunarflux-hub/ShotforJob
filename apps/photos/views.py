@@ -8,7 +8,13 @@ from rest_framework.views import APIView
 from apps.billing.services import InsufficientBalanceError, spend_generation
 
 from .models import Order, PhotoStyle, UploadedPhoto
-from .serializers import OrderCreateSerializer, OrderSerializer, PhotoStyleSerializer
+from .serializers import (
+    OrderCreateSerializer,
+    OrderReviewSerializer,
+    OrderSerializer,
+    PhotoStyleSerializer,
+)
+from .services.reviews import save_review
 from .tasks import generate_photo_task
 from .utils import ANON_ID_COOKIE, ANON_ID_MAX_AGE, get_or_create_anon_id
 
@@ -109,5 +115,30 @@ class OrderListView(OrderOwnershipMixin, generics.ListAPIView):
     throttle_classes = [PollingAnonRateThrottle, PollingUserRateThrottle]
 
     def get_queryset(self):
-        return Order.objects.filter(self.get_owner_filter(self.request))
+        return Order.objects.filter(self.get_owner_filter(self.request)).select_related("review")
 
+
+
+class OrderReviewView(OrderOwnershipMixin, APIView):
+    """
+    POST /api/orders/{id}/review/ — { "rating": 1..5, "comment"?: str }.
+    Отзыв о готовой генерации; повторный POST перезаписывает прошлый отзыв.
+    """
+
+    def post(self, request, id):
+        order = (
+            Order.objects.filter(self.get_owner_filter(request), id=id, status=Order.Status.DONE)
+            .first()
+        )
+        if order is None:
+            return Response({"detail": "Заказ не найден"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = OrderReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        review = save_review(
+            order,
+            rating=serializer.validated_data["rating"],
+            comment=serializer.validated_data.get("comment", ""),
+            source="web",
+        )
+        return Response(OrderReviewSerializer(review).data, status=status.HTTP_200_OK)

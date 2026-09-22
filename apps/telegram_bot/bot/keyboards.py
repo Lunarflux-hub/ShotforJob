@@ -23,6 +23,8 @@ MENU_TOPUP_CB = "menu:topup"
 CHANGE_EMAIL_CB = "profile:change_email"
 SUPPORT_FAQ_CB = "support:faq"
 SUPPORT_WRITE_CB = "support:write"
+REVIEW_RATE_CB = "review"  # review:<order_id>:<1..5>
+REVIEW_SKIP_CB = "review_skip"  # review_skip:<order_id>
 
 # value -> (иконка+подпись для кнопки, подпись без иконки для текстового резюме)
 CLOTHING_LABELS = {
@@ -193,15 +195,29 @@ def confirm_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def order_result_keyboard(order_id) -> InlineKeyboardMarkup:
+def order_result_keyboard(order_id, *, ask_review: bool = True) -> InlineKeyboardMarkup:
     """Кнопки под сообщением с готовым результатом (см.
     apps.telegram_bot.notifications.notify_order_result) — «Скинуть ещё раз»
     работает и спустя долгое время: заново берёт presigned-ссылку на S3, а не
-    полагается на то, что файл ещё жив в кеше Telegram."""
+    полагается на то, что файл ещё жив в кеше Telegram. Пока отзыв не
+    оставлен (ask_review=True), сверху ряд звёзд для оценки (bot/handlers/review.py)."""
+    rows = []
+    if ask_review:
+        rows.append(
+            [
+                InlineKeyboardButton(text=f"{n}⭐", callback_data=f"{REVIEW_RATE_CB}:{order_id}:{n}")
+                for n in range(1, 6)
+            ]
+        )
+    rows.append([InlineKeyboardButton(text="📷 Скинуть ещё раз", callback_data=f"show_photo:{order_id}")])
+    rows.append([InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def review_comment_keyboard(order_id) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📷 Скинуть ещё раз", callback_data=f"show_photo:{order_id}")],
-            [InlineKeyboardButton(text="⬅️ В меню", callback_data=MENU_HOME_CB)],
+            [InlineKeyboardButton(text="⏭ Без комментария", callback_data=f"{REVIEW_SKIP_CB}:{order_id}")],
         ]
     )
 

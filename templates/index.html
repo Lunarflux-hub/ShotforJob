@@ -84,7 +84,9 @@
     /* ===== НИЖНИЙ БЛОК (подзаголовок + кнопки) ===== */
     .bottom-block {
         position: absolute;
-        bottom: 200px;
+        /* 200px до появления .hero-rating под кнопками; минус его высота с
+           отступом (~56px), чтобы подзаголовок и кнопки остались на месте */
+        bottom: 144px;
         left: 50%;
         transform: translateX(-50%);
         width: 100%;
@@ -112,6 +114,41 @@
         margin-bottom: 32px;
     }
     .hero-subtitle br { display: block; }
+
+    /* ===== Мини-блок с рейтингом под кнопками ===== */
+    .hero-rating {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 20px;
+        padding: 8px 18px;
+        border-radius: 40px;
+        background: rgba(255, 255, 255, 0.85);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        font-size: 15px;
+        color: #000000;
+        pointer-events: auto;
+        white-space: nowrap;
+    }
+    .hero-rating-stars {
+        /* 4.8 из 5: пятая звезда закрашена на 80% */
+        background: linear-gradient(90deg, #FFB400 96%, #d9d9d9 96%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-size: 17px;
+        letter-spacing: 1px;
+    }
+    .hero-rating-score { font-weight: 700; }
+    .hero-rating-max { font-weight: 500; opacity: 0.5; }
+    .hero-rating-sep { width: 1px; height: 16px; background: currentColor; opacity: 0.2; }
+    .hero-rating-clients { font-weight: 500; opacity: 0.75; }
+    [data-theme="dark"] .hero-rating { background: rgba(32, 32, 32, 0.85); color: #f2f2f2; box-shadow: none; }
+    [data-theme="dark"] .hero-rating-stars { background: linear-gradient(90deg, #FFB400 96%, #3a3a3a 96%); -webkit-background-clip: text; background-clip: text; }
+    @media (max-width: 480px) {
+        .hero-rating { font-size: 12px; gap: 6px; padding: 6px 12px; margin-top: 16px; }
+        .hero-rating-stars { font-size: 13px; letter-spacing: 0; }
+    }
     .buttons {
         display: flex;
         gap: 20px;
@@ -1288,6 +1325,12 @@
             <div class="buttons">
                 <a href="/workstation/" class="btn btn-primary auth-required" id="heroTryBtn" data-en="Try it">Попробовать</a>
                 <a href="/results/" class="btn btn-secondary auth-required" data-en="Results">Результаты</a>
+            </div>
+            <div class="hero-rating" aria-label="Рейтинг 4.8 из 5, более 20 клиентов">
+                <span class="hero-rating-stars" aria-hidden="true">★★★★★</span>
+                <span class="hero-rating-score">4.8<span class="hero-rating-max">/5</span></span>
+                <span class="hero-rating-sep" aria-hidden="true"></span>
+                <span class="hero-rating-clients" data-en="20+ happy clients">20+ довольных клиентов</span>
             </div>
         </div>
     </section>

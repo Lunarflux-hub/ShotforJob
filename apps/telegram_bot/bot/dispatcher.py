@@ -7,7 +7,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.redis import RedisStorage
 from django.conf import settings
 
-from .handlers import balance, billing, generation, history, profile, start, support
+from .handlers import balance, billing, generation, history, profile, review, start, support
 
 
 def build_bot() -> Bot:
@@ -40,5 +40,6 @@ def build_dispatcher() -> Dispatcher:
     dp.include_router(billing.router)
     dp.include_router(profile.router)
     dp.include_router(support.router)
+    dp.include_router(review.router)
 
     return dp

@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -115,3 +116,35 @@ class GeneratedResult(models.Model):
 
     def __str__(self):
         return f"Result для {self.order_id}"
+
+
+class OrderReview(models.Model):
+    """
+    Отзыв пользователя о результате генерации. Предлагается сразу после
+    готовности фото — на /workstation (static/js/main.js) и в Telegram-боте
+    (кнопки-звёзды под сообщением с результатом, см.
+    apps.telegram_bot.notifications.notify_order_result). Один отзыв на
+    заказ: повторная отправка перезаписывает оценку/комментарий.
+    """
+
+    class Source(models.TextChoices):
+        WEB = "web", "Сайт"
+        TELEGRAM = "telegram", "Telegram-бот"
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="review")
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    comment = models.TextField(blank=True)
+    source = models.CharField(max_length=20, choices=Source.choices, default=Source.WEB)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Отзыв о генерации"
+        verbose_name_plural = "Отзывы о генерациях"
+
+    def __str__(self):
+        return f"Отзыв {self.rating}★ на {self.order_id}"

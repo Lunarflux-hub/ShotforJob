@@ -1,7 +1,7 @@
 from django.conf import settings
 from rest_framework import serializers
 
-from .models import GeneratedResult, Order, PhotoStyle, UploadedPhoto
+from .models import GeneratedResult, Order, OrderReview, PhotoStyle, UploadedPhoto
 from .services import storage
 
 
@@ -31,10 +31,21 @@ class UploadedPhotoSerializer(serializers.ModelSerializer):
         fields = ["id", "image", "uploaded_at"]
 
 
+class OrderReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderReview
+        fields = ["rating", "comment", "created_at"]
+        read_only_fields = ["created_at"]
+        extra_kwargs = {"comment": {"required": False, "allow_blank": True, "max_length": 2000}}
+
+
 class OrderSerializer(serializers.ModelSerializer):
     style = PhotoStyleSerializer(read_only=True)
     uploaded_photos = UploadedPhotoSerializer(many=True, read_only=True)
     results = GeneratedResultSerializer(many=True, read_only=True)
+    # null, пока пользователь не оставил отзыв — фронт по этому решает,
+    # показывать ли форму «Оцените результат» (см. static/js/main.js).
+    review = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -48,10 +59,15 @@ class OrderSerializer(serializers.ModelSerializer):
             "background_color",
             "uploaded_photos",
             "results",
+            "review",
             "created_at",
             "updated_at",
         ]
         read_only_fields = fields
+
+    def get_review(self, obj):
+        review = getattr(obj, "review", None)  # reverse OneToOne: без отзыва — DoesNotExist → None
+        return OrderReviewSerializer(review).data if review else None
 
 
 class OrderCreateSerializer(serializers.Serializer):

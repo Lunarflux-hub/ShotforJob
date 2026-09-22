@@ -28,6 +28,7 @@ from apps.billing.services import (
 )
 from apps.photos.models import Order, PhotoStyle, UploadedPhoto
 from apps.photos.services import storage
+from apps.photos.services.reviews import save_review
 from apps.photos.tasks import generate_photo_task
 from apps.support.serializers import SupportTicketCreateSerializer
 from apps.support.tasks import send_support_ticket_email
@@ -132,6 +133,18 @@ def get_order_photo_url(user, order_id) -> str | None:
     if result is None:
         return None
     return storage.generate_presigned_url(result.s3_key)
+
+
+def save_bot_review(user, order_id, *, rating: int | None = None, comment: str | None = None) -> int | None:
+    """Сохраняет оценку/комментарий к готовому заказу пользователя. Возвращает
+    итоговую оценку или None, если заказ не найден (чужой/не готов)."""
+    order = Order.objects.filter(id=order_id, user=user, status=Order.Status.DONE).first()
+    if order is None:
+        return None
+    if rating is None and not hasattr(order, "review"):
+        return None  # комментарий без оценки сохранять не к чему
+    review = save_review(order, rating=rating, comment=comment, source="telegram")
+    return review.rating
 
 
 def get_user_balance(user) -> int:

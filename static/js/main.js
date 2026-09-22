@@ -20,6 +20,15 @@
     const fbCount = document.getElementById("fbCount");
     const formBalanceRow = document.getElementById("formBalanceRow");
 
+    const reviewBlock = document.getElementById("reviewBlock");
+    const reviewForm = document.getElementById("reviewForm");
+    const reviewStars = document.querySelectorAll("#reviewStars .review-star");
+    const reviewDetails = document.getElementById("reviewDetails");
+    const reviewComment = document.getElementById("reviewComment");
+    const reviewSubmit = document.getElementById("reviewSubmit");
+    const reviewError = document.getElementById("reviewError");
+    const reviewThanks = document.getElementById("reviewThanks");
+
     let pollTimer = null;
     let currentBalance = null;
 
@@ -165,6 +174,7 @@
                 generatedImage.src = lastResult.file_url;
                 downloadBtn.href = lastResult.file_url;
                 imageBlock.classList.remove("d-none");
+                setupReview(order);
             } else {
                 setStatus("failed");
                 errorText.textContent = "Результат не найден в ответе сервера";
@@ -177,6 +187,70 @@
             errorText.textContent = order.error_message || "Не удалось сгенерировать фото";
             errorBlock.classList.remove("d-none");
         }
+    }
+
+    // ---------- Отзыв о генерации ----------
+    let reviewOrderId = null;
+    let reviewRating = 0;
+
+    function paintStars(value) {
+        reviewStars.forEach((star) => {
+            const on = Number(star.dataset.value) <= value;
+            star.classList.toggle("active", on);
+            star.setAttribute("aria-checked", String(Number(star.dataset.value) === value));
+        });
+    }
+
+    function setupReview(order) {
+        if (!reviewBlock) return;
+        reviewOrderId = order.id;
+        reviewRating = 0;
+        reviewComment.value = "";
+        reviewError.classList.add("d-none");
+        reviewDetails.classList.add("d-none");
+        paintStars(0);
+
+        const alreadyReviewed = !!order.review;
+        reviewForm.classList.toggle("d-none", alreadyReviewed);
+        reviewThanks.classList.toggle("d-none", !alreadyReviewed);
+        reviewBlock.classList.remove("d-none");
+    }
+
+    reviewStars.forEach((star) => {
+        star.addEventListener("mouseenter", () => paintStars(Number(star.dataset.value)));
+        star.addEventListener("mouseleave", () => paintStars(reviewRating));
+        star.addEventListener("click", () => {
+            reviewRating = Number(star.dataset.value);
+            paintStars(reviewRating);
+            reviewComment.placeholder = reviewRating <= 3
+                ? "Что нам стоит улучшить? (необязательно)"
+                : "Пара слов о результате (необязательно)";
+            reviewDetails.classList.remove("d-none");
+        });
+    });
+
+    if (reviewSubmit) {
+        reviewSubmit.addEventListener("click", async () => {
+            if (!reviewOrderId || !reviewRating) return;
+            reviewSubmit.disabled = true;
+            reviewError.classList.add("d-none");
+            try {
+                const doFetch = window.PhotoStudioAuth ? window.PhotoStudioAuth.authFetch : fetch;
+                const resp = await doFetch(`${API_BASE}/orders/${reviewOrderId}/review/`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rating: reviewRating, comment: reviewComment.value.trim() }),
+                });
+                if (!resp.ok) throw new Error("Не удалось отправить отзыв, попробуйте ещё раз");
+                reviewForm.classList.add("d-none");
+                reviewThanks.classList.remove("d-none");
+            } catch (e) {
+                reviewError.textContent = e.message;
+                reviewError.classList.remove("d-none");
+            } finally {
+                reviewSubmit.disabled = false;
+            }
+        });
     }
 
     async function createOrder() {

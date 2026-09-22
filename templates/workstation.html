@@ -850,6 +850,43 @@
 
     #errorText { color: #c62828; margin-bottom: 16px; }
 
+    /* ---- Отзыв о генерации ---- */
+    .review-block {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #efefef;
+    }
+    .review-title { font-weight: 600; font-size: 16px; margin-bottom: 8px; }
+    .review-stars { display: inline-flex; gap: 4px; margin-bottom: 12px; }
+    .review-star {
+        font-size: 32px;
+        line-height: 1;
+        background: none;
+        border: none;
+        padding: 2px;
+        cursor: pointer;
+        color: #d9d9d9;
+        transition: color 0.15s, transform 0.15s;
+    }
+    .review-star.active { color: #FFB400; }
+    .review-star:hover { transform: scale(1.12); }
+    .review-comment {
+        display: block;
+        width: 100%;
+        font: inherit;
+        font-size: 14px;
+        padding: 12px 14px;
+        border: 1.5px solid #e5e5e5;
+        border-radius: 14px;
+        resize: vertical;
+        margin-bottom: 12px;
+        background: #ffffff;
+        color: inherit;
+    }
+    .review-comment:focus { outline: none; border-color: #0066FF; }
+    .review-error { color: #c62828; font-size: 14px; margin-top: 10px; }
+    .review-thanks { font-weight: 500; font-size: 15px; }
+
     .d-none { display: none !important; }
     .sr-only {
         position: absolute !important;
@@ -1085,6 +1122,27 @@
                 <img id="generatedImage" src="" alt="Результат генерации">
                 <div class="result-actions">
                     <a id="downloadBtn" href="" download class="btn-pill primary">Скачать</a>
+                </div>
+
+                <!-- Отзыв о генерации: POST /api/orders/{id}/review/ (static/js/main.js) -->
+                <div id="reviewBlock" class="review-block d-none">
+                    <div id="reviewForm">
+                        <p class="review-title">Оцените результат</p>
+                        <div class="review-stars" id="reviewStars" role="radiogroup" aria-label="Оценка от 1 до 5">
+                            <button type="button" class="review-star" data-value="1" role="radio" aria-checked="false" aria-label="1 из 5">★</button>
+                            <button type="button" class="review-star" data-value="2" role="radio" aria-checked="false" aria-label="2 из 5">★</button>
+                            <button type="button" class="review-star" data-value="3" role="radio" aria-checked="false" aria-label="3 из 5">★</button>
+                            <button type="button" class="review-star" data-value="4" role="radio" aria-checked="false" aria-label="4 из 5">★</button>
+                            <button type="button" class="review-star" data-value="5" role="radio" aria-checked="false" aria-label="5 из 5">★</button>
+                        </div>
+                        <div id="reviewDetails" class="d-none">
+                            <textarea id="reviewComment" class="review-comment" rows="3" maxlength="2000"
+                                      placeholder="Пара слов о результате (необязательно)"></textarea>
+                            <button type="button" id="reviewSubmit" class="btn-pill primary">Отправить отзыв</button>
+                            <p id="reviewError" class="review-error d-none"></p>
+                        </div>
+                    </div>
+                    <p id="reviewThanks" class="review-thanks d-none">Спасибо за отзыв! 💙</p>
                 </div>
             </div>
 
