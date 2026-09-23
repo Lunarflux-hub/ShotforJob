@@ -89,7 +89,16 @@ def _extract_json(content: str) -> dict:
 def write_carousel(topic: str, slides_count: int) -> tuple[list[dict], str]:
     """Возвращает (slides, caption)."""
     client = OpenAI(api_key=settings.POLZA_API_KEY, base_url=settings.POLZA_CHAT_BASE_URL, timeout=120)
-    user_prompt = f"Тема карусели: {topic}\nКоличество слайдов: {slides_count}"
+    # Структуру проговариваем явно с номерами: иначе модель на теме вида
+    # «5 шагов» тратит последний слайд на пятый шаг вместо призыва к действию,
+    # а renderer рисует последний слайд как финальный (без номера).
+    user_prompt = (
+        f"Тема карусели: {topic}\n"
+        f"Количество слайдов: {slides_count}\n"
+        f"Структура: слайд 1 — обложка; слайды 2–{slides_count - 1} — по одной мысли "
+        f"(всего {slides_count - 2}); слайд {slides_count} — вывод и призыв к действию, "
+        f"не очередной пункт."
+    )
     try:
         response = client.chat.completions.create(
             model=settings.POLZA_TEXT_MODEL,
