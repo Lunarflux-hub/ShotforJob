@@ -7,6 +7,47 @@ from __future__ import annotations
 
 from ..models import Order, OrderReview
 
+# Заглушки для карусели на главной, пока опубликованных отзывов мало. Почты
+# выдуманные и уже замаскированные — реальные адреса клиентов под
+# ненаписанными ими отзывами показывать нельзя.
+PLACEHOLDER_REVIEWS = [
+    {"text": "Сделала фото на резюме за пять минут — выглядит как из студии. Уже отправила в три компании!", "email": "an***@gmail.com", "rating": 5},
+    {"text": "Нужно было срочно фото на пропуск, а в фотосалон не успевал. Результат отличный, спасибо!", "email": "dm***@yandex.ru", "rating": 5},
+    {"text": "Деловой стиль получился очень естественным, коллеги не поверили, что это нейросеть.", "email": "ek***@mail.ru", "rating": 5},
+    {"text": "Удобно, что можно выбрать одежду и фон. С первого раза чуть не то, со второго — идеально.", "email": "se***@gmail.com", "rating": 4},
+    {"text": "Обновила аватарку в LinkedIn, стало намного солиднее. Рекомендую!", "email": "ol***@yandex.ru", "rating": 5},
+    {"text": "Быстро и недорого. Фото на документы приняли без вопросов.", "email": "iv***@mail.ru", "rating": 5},
+]
+
+LANDING_MIN_REVIEWS = 6
+
+
+def mask_email(email: str) -> str:
+    """keylong@gmail.com -> ke***@gmail.com"""
+    local, _, domain = (email or "").partition("@")
+    if not local or not domain:
+        return ""
+    return f"{local[:2]}***@{domain}"
+
+
+def landing_reviews(limit: int = 12) -> list[dict]:
+    """Отзывы для карусели на главной: опубликованные в админке (is_public),
+    с замаскированной почтой автора; если их меньше LANDING_MIN_REVIEWS —
+    добиваем заглушками."""
+    reviews = [
+        {
+            "text": review.comment,
+            "email": mask_email(review.order.user.email if review.order.user_id else "") or "Пользователь Telegram",
+            "rating": review.rating,
+        }
+        for review in OrderReview.objects.filter(is_public=True)
+        .exclude(comment="")
+        .select_related("order__user")[:limit]
+    ]
+    if len(reviews) < LANDING_MIN_REVIEWS:
+        reviews += PLACEHOLDER_REVIEWS[: LANDING_MIN_REVIEWS - len(reviews)]
+    return reviews
+
 
 def save_review(order: Order, *, rating: int | None = None, comment: str | None = None, source: str) -> OrderReview:
     """

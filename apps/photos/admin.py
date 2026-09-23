@@ -28,8 +28,9 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(OrderReview)
 class OrderReviewAdmin(admin.ModelAdmin):
-    list_display = ["order", "rating", "source", "short_comment", "created_at"]
-    list_filter = ["rating", "source"]
+    list_display = ["order", "rating", "source", "short_comment", "is_public", "created_at"]
+    list_editable = ["is_public"]
+    list_filter = ["is_public", "rating", "source"]
     search_fields = ["comment", "order__id"]
     raw_id_fields = ["order"]
 

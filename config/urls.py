@@ -5,6 +5,7 @@ from django.urls import include, path
 from django.views.generic import TemplateView
 
 from apps.billing.views import BotPayRedirectView
+from apps.photos.views import LandingView
 
 urlpatterns = [
     path("admin/", admin.site.urls),  # оставил один раз
@@ -15,8 +16,7 @@ urlpatterns = [
     path("api/billing/", include("apps.billing.urls")),
     path(
         "",
-        TemplateView.as_view(
-            template_name="index.html",
+        LandingView.as_view(
             extra_context={
                 "google_client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
                 "yandex_client_id": settings.YANDEX_OAUTH_CLIENT_ID,

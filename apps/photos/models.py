@@ -137,6 +137,9 @@ class OrderReview(models.Model):
     )
     comment = models.TextField(blank=True)
     source = models.CharField(max_length=20, choices=Source.choices, default=Source.WEB)
+    # Модерация: на лендинг (карусель отзывов на главной) попадают только
+    # отзывы, отмеченные в админке — чтобы туда не утёк спам/мат.
+    is_public = models.BooleanField("Показывать на главной", default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

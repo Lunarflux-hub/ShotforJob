@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import Q
+from django.views.generic import TemplateView
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
@@ -14,7 +15,7 @@ from .serializers import (
     OrderSerializer,
     PhotoStyleSerializer,
 )
-from .services.reviews import save_review
+from .services.reviews import landing_reviews, save_review
 from .tasks import generate_photo_task
 from .utils import ANON_ID_COOKIE, ANON_ID_MAX_AGE, get_or_create_anon_id
 
@@ -142,3 +143,16 @@ class OrderReviewView(OrderOwnershipMixin, APIView):
             source="web",
         )
         return Response(OrderReviewSerializer(review).data, status=status.HTTP_200_OK)
+
+
+class LandingView(TemplateView):
+    """Главная страница: к контексту добавлены отзывы для карусели."""
+
+    template_name = "index.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["reviews"] = landing_reviews()
+        # ~8с на карточку — скорость ленты не зависит от числа отзывов
+        context["reviews_duration"] = len(context["reviews"]) * 8
+        return context

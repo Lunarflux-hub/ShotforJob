@@ -699,6 +699,71 @@
         transform: translateX(3px);
     }
 
+    /* ===== Карусель отзывов ===== */
+    .reviews-section {
+        width: 100%;
+        padding: 20px 0 20px 0;
+    }
+    .reviews-marquee {
+        overflow: hidden;
+        padding: 16px 0 28px;  /* место под тень карточек */
+        /* мягко растворяем края ленты */
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+        mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+    }
+    .reviews-track {
+        display: flex;
+        width: max-content;
+        animation: reviews-scroll var(--reviews-duration, 60s) linear infinite;
+    }
+    .reviews-marquee:hover .reviews-track { animation-play-state: paused; }
+    .reviews-group {
+        display: flex;
+        gap: 24px;
+        padding-right: 24px;  /* тот же зазор на стыке двух копий */
+    }
+    @keyframes reviews-scroll {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+    }
+    .review-card {
+        flex: 0 0 auto;
+        width: 320px;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
+    }
+    .review-card-text {
+        margin: 0 0 18px;
+        font-size: 16px;
+        line-height: 1.55;
+        flex: 1;
+    }
+    .review-card-email {
+        font-size: 14px;
+        font-weight: 500;
+        opacity: 0.55;
+        margin-bottom: 6px;
+    }
+    .review-card-stars { font-size: 18px; letter-spacing: 2px; color: #d9d9d9; }
+    .review-card-stars .on { color: #FFB400; }
+    [data-theme="dark"] .review-card { background: #181818; box-shadow: none; }
+    [data-theme="dark"] .review-card-stars { color: #3a3a3a; }
+    @media (max-width: 480px) {
+        .review-card { width: 260px; padding: 20px; }
+        .review-card-text { font-size: 15px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        /* без автопрокрутки — лента листается пальцем/колесом */
+        .reviews-marquee { overflow-x: auto; }
+        .reviews-track { animation: none; }
+        .reviews-group[aria-hidden="true"] { display: none; }
+    }
+
     .tariffs-section {
         padding: 80px 0 60px 0;
         width: 100%;
@@ -1448,6 +1513,36 @@
             </div>
         </div>
     </section>
+
+    <!-- ===== Карусель отзывов (данные: apps.photos.services.reviews.landing_reviews) ===== -->
+    {% if reviews %}
+    <section class="reviews-section" aria-label="Отзывы клиентов">
+        <div class="reviews-marquee">
+            <!-- Список выводится дважды: анимация сдвигает ленту ровно на половину,
+                 и вторая копия бесшовно встаёт на место первой. -->
+            <div class="reviews-track" style="--reviews-duration: {{ reviews_duration }}s">
+                <div class="reviews-group">
+                {% for review in reviews %}
+                    <figure class="review-card">
+                        <blockquote class="review-card-text">{{ review.text }}</blockquote>
+                        <figcaption class="review-card-email">{{ review.email }}</figcaption>
+                        <div class="review-card-stars" aria-label="Оценка {{ review.rating }} из 5">{% for i in "12345" %}<span{% if forloop.counter <= review.rating %} class="on"{% endif %}>★</span>{% endfor %}</div>
+                    </figure>
+                {% endfor %}
+                </div>
+                <div class="reviews-group" aria-hidden="true">
+                {% for review in reviews %}
+                    <figure class="review-card">
+                        <blockquote class="review-card-text">{{ review.text }}</blockquote>
+                        <figcaption class="review-card-email">{{ review.email }}</figcaption>
+                        <div class="review-card-stars" aria-label="Оценка {{ review.rating }} из 5">{% for i in "12345" %}<span{% if forloop.counter <= review.rating %} class="on"{% endif %}>★</span>{% endfor %}</div>
+                    </figure>
+                {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
 
     <!-- ===== Тарифы ===== -->
     <section class="tariffs-section" id="pricing">
