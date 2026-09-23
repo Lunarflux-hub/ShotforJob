@@ -83,5 +83,12 @@ docker compose -f docker-compose.prod.yml run --rm -p 80:80 \
 ```bash
 git pull
 docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml restart nginx
 ```
 Миграции и collectstatic снова применятся автоматически через entrypoint.
+
+**Перезапуск nginx обязателен.** `up --build` пересоздаёт контейнер `web`, и тот
+получает новый IP во внутренней docker-сети, а nginx продолжает работать и
+держит старый IP, который определил при своём старте. Без перезапуска сайт
+отдаёт **502 Bad Gateway** (в логах nginx: `connect() failed (111: Connection
+refused) while connecting to upstream`).
