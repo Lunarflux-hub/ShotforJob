@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.support",
     "apps.billing",
     "apps.telegram_bot",
+    "apps.carousels",
 ]
 
 MIDDLEWARE = [
@@ -189,6 +190,21 @@ POLZA_IMAGE_MODEL = env(
 # Сила трансформации для image-to-image (0-1). Ниже — ближе к исходному фото
 # (меньше искажений лица), выше — больше свободы у модели менять сцену.
 POLZA_IMG2IMG_STRENGTH = env.float("POLZA_IMG2IMG_STRENGTH", default=0.4)
+
+# Текстовые модели Polza.ai (OpenAI-совместимый /chat/completions) — пишут
+# тексты слайдов для каруселей (apps/carousels/services/copywriter.py).
+# Живут на другом хосте, чем Media API выше (POLZA_BASE_URL).
+POLZA_CHAT_BASE_URL = env("POLZA_CHAT_BASE_URL", default="https://polza.ai/api/v1")
+POLZA_TEXT_MODEL = env("POLZA_TEXT_MODEL", default="anthropic/claude-sonnet-5")
+
+# --- Карусели для Instagram (бета) -----------------------------------------
+# Пока фича в тесте — доступна только этим аккаунтам (по email, регистр не
+# важен). Остальным API отвечает 404, а пункт меню не показывается.
+CAROUSEL_BETA_EMAILS = [
+    email.strip().lower()
+    for email in env.list("CAROUSEL_BETA_EMAILS", default=["keylongkayser@gmail.com"])
+    if email.strip()
+]
 
 # --- Yandex Cloud Object Storage ------------------------------------------
 YC_S3_ENDPOINT_URL = env("YC_S3_ENDPOINT_URL", default="https://storage.yandexcloud.net")

@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/", include("apps.photos.urls")),
     path("api/", include("apps.support.urls")),
     path("api/billing/", include("apps.billing.urls")),
+    path("api/carousels/", include("apps.carousels.urls")),
     path(
         "",
         LandingView.as_view(
@@ -48,6 +49,9 @@ urlpatterns = [
     path("billing/history/", TemplateView.as_view(template_name="billing_history.html"), name="billing_history"),
     path("billing/pay/<int:payment_id>/", BotPayRedirectView.as_view(), name="billing_bot_pay"),
     path("results/", TemplateView.as_view(template_name="results.html"), name="results"),
+    # Бета: страница-оболочка открывается всем, но без доступа (см.
+    # apps/carousels/access.py) API отвечает 404 и страница это показывает.
+    path("carousels/", TemplateView.as_view(template_name="carousels.html"), name="carousels"),
     # ---------- НОВЫЙ МАРШРУТ ДЛЯ ПОЛИТИКИ ----------
     path("policy/", TemplateView.as_view(template_name="policy.html"), name="policy"),
     # ---------- НОВЫЙ МАРШРУТ ДЛЯ СТРАНИЦЫ ПОДДЕРЖКИ ----------
