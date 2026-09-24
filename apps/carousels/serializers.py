@@ -91,6 +91,8 @@ class SlidePreviewSerializer(serializers.Serializer):
     slide = SlideSerializer()
     index = serializers.IntegerField(min_value=0, max_value=MAX_EDITED_SLIDES - 1)
     total = serializers.IntegerField(min_value=1, max_value=MAX_EDITED_SLIDES)
+    # Номер пункта с учётом остальных блоков (редактор считает сам, см. slide_numbers)
+    number = serializers.IntegerField(min_value=0, max_value=MAX_EDITED_SLIDES, required=False)
     theme = serializers.ChoiceField(choices=THEME_CHOICES)
     design = DesignSerializer(required=False, default=dict)
     handle = serializers.CharField(max_length=40, required=False, allow_blank=True, default="")

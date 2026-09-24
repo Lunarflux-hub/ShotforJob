@@ -162,6 +162,17 @@
     }
 
     // ================= Превью блоков =================
+    // Сквозной номер пункта — как slide_numbers() в renderer.py: считаются
+    // только «Текст» и «Список», чтобы не было дыр 01, 02, 05
+    function slideNumber(block) {
+        let n = 0;
+        for (const b of blocks) {
+            if (b.layout === "text" || b.layout === "list") n += 1;
+            if (b === block) return n;
+        }
+        return n;
+    }
+
     function schedulePreview(block, delay = PREVIEW_DEBOUNCE_MS) {
         const entry = previews.get(block);
         if (!entry) return;
@@ -187,6 +198,7 @@
                 body: JSON.stringify({
                     slide: block,
                     index: blocks.indexOf(block),
+                    number: slideNumber(block),
                     total: blocks.length,
                     theme: state.theme,
                     design: state.design,
@@ -327,7 +339,7 @@
                 block.layout = layoutSelect.value;
                 markDirty();
                 renderBlocks();
-                schedulePreview(block, 0);
+                refreshAllPreviews();  // номера пунктов у следующих блоков могли сдвинуться
             });
 
             head.append(

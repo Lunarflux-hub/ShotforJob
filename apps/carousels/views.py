@@ -188,5 +188,6 @@ class CarouselPreviewView(APIView):
             data["theme"],
             data.get("handle", ""),
             data["design"],
+            data.get("number"),
         )
         return HttpResponse(image, content_type="image/jpeg")

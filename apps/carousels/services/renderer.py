@@ -117,9 +117,9 @@ def _emoji_font() -> ImageFont.FreeTypeFont | None:
 # Стрелки (U+2190–21FF) сюда не входят — они есть в Vela Sans и рисуются текстом.
 EMOJI_SEQUENCE = re.compile(
     "(?:[\U0001F1E6-\U0001F1FF]{2}"
-    "|[\U0001F000-\U0001FAFF☀-➿⬀-⯿⌀-⏿]"
-    "️?[\U0001F3FB-\U0001F3FF]?"
-    "(?:‍[\U0001F000-\U0001FAFF☀-➿]️?[\U0001F3FB-\U0001F3FF]?)*)"
+    "|[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\u2300-\u23FF]"
+    "\uFE0F?[\U0001F3FB-\U0001F3FF]?"
+    "(?:\u200D[\U0001F000-\U0001FAFF\u2600-\u27BF]\uFE0F?[\U0001F3FB-\U0001F3FF]?)*)"
 )
 
 
@@ -281,7 +281,10 @@ class Canvas:
             font = _font(weight, size)
             lines = self.wrap(text, font, width)
             line_height = round(size * spacing)
-            if len(lines) * line_height <= max_height or size <= min_size:
+            # Слово шире строки wrap() режет посередине («собеседовани/ю») —
+            # считаем это «не влезло», пока есть куда уменьшать кегль
+            words_fit = all(self.measure(word, font) <= width for word in (text or "").split())
+            if (len(lines) * line_height <= max_height and words_fit) or size <= min_size:
                 return font, lines, line_height
             size -= 2
 
@@ -328,6 +331,20 @@ class Canvas:
 
 # --------------------------------------------------------- макеты ---------
 
+NUMBERED_LAYOUTS = ("text", "list")
+
+
+def slide_numbers(slides: list[dict]) -> list[int]:
+    """Номер пункта для каждого слайда: считаются только text/list, чтобы
+    между «Цифрой» и «Цитатой» не было дыр вида 01, 02, 05."""
+    numbers, n = [], 0
+    for slide in slides:
+        if slide.get("layout") in NUMBERED_LAYOUTS:
+            n += 1
+        numbers.append(n)
+    return numbers
+
+
 def _header(c: Canvas, slide: dict, index: int) -> int:
     """Шапка слайда-пункта: крупный номер и/или эмодзи. Возвращает y под ней."""
     y = PADDING + 10
@@ -338,12 +355,12 @@ def _header(c: Canvas, slide: dict, index: int) -> int:
             return y + 160
         if show_number:
             number_font = _font("ExtraBold", 110)
-            c.draw.text((c.w // 2, y), f"{index:02d}", font=number_font, fill=c.accent, anchor="mt")
+            c.draw.text((c.w // 2, y), f"{c.number:02d}", font=number_font, fill=c.accent, anchor="mt")
             return y + 160
         return y + 20
     has_header = False
     if show_number:
-        c.draw.text((PADDING - 6, y), f"{index:02d}", font=_font("ExtraBold", 120), fill=c.accent)
+        c.draw.text((PADDING - 6, y), f"{c.number:02d}", font=_font("ExtraBold", 120), fill=c.accent)
         has_header = True
     if emoji:
         has_header = c.emoji(emoji, 120, y + 6, x=c.w - PADDING - 120) or has_header
@@ -508,8 +525,19 @@ RENDERERS = {
 }
 
 
-def render_slide(slide: dict, index: int, total: int, theme_name: str, handle: str = "", design: dict | None = None) -> Canvas:
+def render_slide(
+    slide: dict,
+    index: int,
+    total: int,
+    theme_name: str,
+    handle: str = "",
+    design: dict | None = None,
+    number: int | None = None,
+) -> Canvas:
+    """number — номер пункта для крупной цифры (см. slide_numbers); не
+    передан — берётся позиция слайда."""
     canvas = Canvas(THEMES.get(theme_name, THEMES["light"]), normalize_design(design))
+    canvas.number = number if number is not None else index
     layout = slide.get("layout") or ("cover" if index == 0 else "text")
     if layout == "cover":
         _render_cover(canvas, slide, total)
@@ -533,4 +561,8 @@ def render_preview_jpeg(*args, width: int = 540, **kwargs) -> bytes:
 
 
 def render_carousel(slides: list[dict], theme_name: str, handle: str = "", design: dict | None = None) -> list[bytes]:
-    return [render_slide_png(slide, i, len(slides), theme_name, handle, design) for i, slide in enumerate(slides)]
+    numbers = slide_numbers(slides)
+    return [
+        render_slide_png(slide, i, len(slides), theme_name, handle, design, numbers[i])
+        for i, slide in enumerate(slides)
+    ]
