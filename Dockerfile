@@ -5,8 +5,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# fonts-noto-color-emoji — цветные эмодзи на слайдах каруселей
+# (apps/carousels/services/renderer.py)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev gcc netcat-openbsd \
+    libpq-dev gcc netcat-openbsd fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

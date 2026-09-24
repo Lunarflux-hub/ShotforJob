@@ -8,7 +8,7 @@ class Carousel(models.Model):
     """
     Карусель для Instagram: нейросеть пишет тексты слайдов по теме
     пользователя (services/copywriter.py), затем слайды рисуются в PNG
-    1080×1350 (services/renderer.py) и кладутся в S3. Пользователь может
+    1080×1350 или 1080×1080 (services/renderer.py) и кладутся в S3. Пользователь может
     поправить тексты и пересобрать картинки без повторного вызова нейросети.
     """
 
@@ -18,21 +18,21 @@ class Carousel(models.Model):
         DONE = "done", "Готово"
         FAILED = "failed", "Ошибка"
 
-    class Theme(models.TextChoices):
-        LIGHT = "light", "Светлая"
-        DARK = "dark", "Тёмная"
-        BLUE = "blue", "Синяя"
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="carousels")
 
     topic = models.TextField(help_text="О чём карусель — формулировка пользователя")
     slides_count = models.PositiveSmallIntegerField(default=7)
-    theme = models.CharField(max_length=20, choices=Theme.choices, default=Theme.LIGHT)
+    # Пресет цветов — ключ из services/renderer.THEMES
+    theme = models.CharField(max_length=20, default="light")
+    # Остальное оформление (акцент, выравнивание, узор, формат…) —
+    # см. services/renderer.DEFAULT_DESIGN
+    design = models.JSONField(default=dict, blank=True)
     # Подпись в углу каждого слайда, например @username
     handle = models.CharField(max_length=40, blank=True)
 
-    # [{"title": str, "body": str}, ...] — первый слайд обложка, последний призыв
+    # [{"layout", "emoji", "title", "body", "items", "value"}, ...] —
+    # см. services/renderer.py; после генерации первый слайд обложка, последний призыв
     slides = models.JSONField(default=list, blank=True)
     # Подпись к посту (текст под каруселью + хэштеги) — пишет та же нейросеть
     caption = models.TextField(blank=True)

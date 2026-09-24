@@ -5,11 +5,15 @@ from .views import (
     CarouselDetailView,
     CarouselDownloadView,
     CarouselListCreateView,
+    CarouselOptionsView,
+    CarouselPreviewView,
     CarouselRerenderView,
 )
 
 urlpatterns = [
     path("access/", CarouselAccessView.as_view(), name="carousel-access"),
+    path("options/", CarouselOptionsView.as_view(), name="carousel-options"),
+    path("preview/", CarouselPreviewView.as_view(), name="carousel-preview"),
     path("", CarouselListCreateView.as_view(), name="carousel-list"),
     path("<uuid:id>/", CarouselDetailView.as_view(), name="carousel-detail"),
     path("<uuid:id>/rerender/", CarouselRerenderView.as_view(), name="carousel-rerender"),

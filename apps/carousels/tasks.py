@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def _render_and_upload(carousel: Carousel) -> None:
-    images = render_carousel(carousel.slides, carousel.theme, carousel.handle)
+    images = render_carousel(carousel.slides, carousel.theme, carousel.handle, carousel.design)
     # Новый префикс на каждую пересборку: старые presigned-ссылки в открытой
     # вкладке не начнут внезапно показывать другую картинку.
     batch = uuid.uuid4().hex[:8]

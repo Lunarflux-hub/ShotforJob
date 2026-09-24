@@ -150,6 +150,9 @@ REST_FRAMEWORK = {
         # время обычного тестирования, из-за чего баланс показывал "—", а
         # поллинг статуса генерации решал, что запрос упал.
         "polling": "3000/day",
+        # Живое превью блоков в редакторе каруселей: запрос на каждую паузу
+        # в наборе текста и на каждую смену оформления (по запросу на блок).
+        "carousel_preview": "10000/day",
     },
 }
 
@@ -195,9 +198,15 @@ POLZA_IMG2IMG_STRENGTH = env.float("POLZA_IMG2IMG_STRENGTH", default=0.4)
 # тексты слайдов для каруселей (apps/carousels/services/copywriter.py).
 # Живут на другом хосте, чем Media API выше (POLZA_BASE_URL).
 POLZA_CHAT_BASE_URL = env("POLZA_CHAT_BASE_URL", default="https://polza.ai/api/v1")
-POLZA_TEXT_MODEL = env("POLZA_TEXT_MODEL", default="anthropic/claude-sonnet-5")
+# gpt-5.4-mini: сравнивали на одной теме — ~0,37 ₽ и ~5 с за карусель против
+# ~1,15 ₽ и ~15 с у anthropic/claude-sonnet-5 при сопоставимом качестве текста;
+# nano/deepseek/gemini-lite дешевле, но ломают структуру или русский язык.
+POLZA_TEXT_MODEL = env("POLZA_TEXT_MODEL", default="openai/gpt-5.4-mini")
 
 # --- Карусели для Instagram (бета) -----------------------------------------
+# Цветные эмодзи на слайдах — Noto Color Emoji из пакета fonts-noto-color-emoji
+# (ставится в Dockerfile). Нет файла — эмодзи на слайдах просто пропускаются.
+EMOJI_FONT_PATH = env("EMOJI_FONT_PATH", default="/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf")
 # Пока фича в тесте — доступна только этим аккаунтам (по email, регистр не
 # важен). Остальным API отвечает 404, а пункт меню не показывается.
 CAROUSEL_BETA_EMAILS = [
