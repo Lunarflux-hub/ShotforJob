@@ -4,6 +4,7 @@
 {% block title %}Оплата — ShotForJob{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/tariffs.css' %}">
 <style>
     .payment-wrap {
         max-width: 1400px;
@@ -308,6 +309,7 @@
     }
     .promo-input {
         flex: 1;
+        min-width: 0;  /* иначе поле не сжимается уже своей «родной» ширины и кнопка уезжает за край на телефоне */
         height: 48px;
         border-radius: 12px;
         border: 1.5px solid #e2e2e2;
@@ -322,6 +324,7 @@
         border-color: #0066FF;
     }
     .promo-apply-btn {
+        flex-shrink: 0;
         height: 48px;
         padding: 0 20px;
         border-radius: 12px;
@@ -425,9 +428,10 @@
 
 {% block content %}
 <div class="payment-wrap">
-    <div class="payment-title">Пополнение баланса</div>
+    <h1 class="payment-title" data-en="Top up your balance">Пополнение баланса</h1>
 
-    <div id="paymentGuestNotice" class="payment-guest-notice">
+    <div id="paymentGuestNotice" class="payment-guest-notice"
+         data-en='To top up your balance, please sign in. <a href="/login/?next=/payment/">Sign in or sign up</a>'>
         Чтобы пополнить баланс, нужно войти в аккаунт.
         <a href="/login/?next=/payment/">Войти или зарегистрироваться</a>
     </div>
@@ -435,34 +439,37 @@
     <div id="balanceSummary" class="balance-summary">
         <div class="balance-summary-left">
             <span class="balance-badge-icon">
-                <img src="{% static 'images/lightning-icon.png' %}" alt="Молния" style="width:20px; height:20px; display:block;">
+                <img src="{% static 'images/lightning-icon.png' %}" alt="" style="width:20px; height:20px; display:block;">
             </span>
             <div>
                 <span class="balance-summary-count" id="balanceSummaryCount">—</span>
-                <span class="balance-summary-label">генераций на балансе</span>
+                <span class="balance-summary-label" data-en="generations on balance">генераций на балансе</span>
             </div>
         </div>
-        <span class="balance-summary-hint">1 генерация = 1 фото</span>
+        <span class="balance-summary-hint" data-en="1 generation = 1 photo">1 генерация = 1 фото</span>
     </div>
 
     <div class="payment-card">
-        <div class="payment-section-title">Пакеты генераций</div>
-        <div id="paymentPackages" class="tariffs-grid">
-            <!-- Карточки будут отрисованы через JS -->
+        <h2 class="payment-section-title" data-en="Generation packages">Пакеты генераций</h2>
+        {# Карточки рендерятся на сервере — цены видны сразу и без JS (apps/billing/catalog.py) #}
+        <div id="paymentPackages" class="tariffs-grid" role="radiogroup" aria-label="Пакет генераций">
+            {% for t in tariffs %}
+                {% include "partials/tariff_card.html" with t=t mode="select" selected_id=selected_package_id %}
+            {% empty %}
+                <div class="payment-empty-note" data-en="Packages are not set up yet. Please check back later.">Пакеты пока не настроены. Загляните позже.</div>
+            {% endfor %}
         </div>
 
         <div class="promo-row">
-            <input type="text" id="promoInput" class="promo-input" placeholder="Промокод" autocomplete="off" maxlength="32" />
-            <button id="promoApplyBtn" class="promo-apply-btn" type="button">Применить</button>
+            <input type="text" id="promoInput" class="promo-input" placeholder="Промокод" aria-label="Промокод" autocomplete="off" maxlength="32" />
+            <button id="promoApplyBtn" class="promo-apply-btn" type="button" data-en="Apply">Применить</button>
         </div>
-        <div id="promoResult" class="promo-result"></div>
+        <div id="promoResult" class="promo-result" aria-live="polite"></div>
 
-        <button id="paymentPayBtn" class="payment-pay-btn" disabled>
-            Выберите пакет
-        </button>
-        <div class="payment-sbp-note">Оплата осуществляется через СБП (Систему быстрых платежей)</div>
+        <button id="paymentPayBtn" class="payment-pay-btn" disabled></button>
+        <div class="payment-sbp-note" data-en="Payment via SBP (Faster Payments System)">Оплата осуществляется через СБП (Систему быстрых платежей)</div>
 
-        <div id="paymentMessage" class="payment-message"></div>
+        <div id="paymentMessage" class="payment-message" aria-live="polite"></div>
     </div>
 </div>
 
@@ -474,16 +481,17 @@
 <script>
 /**
  * Логика страницы /payment/ — покупка пакетов генераций через PayAnyWay.
- * Используется точный дизайн карточек с лендинга, данные из API.
- * Цены отображаются без копеек.
- * Порядок карточек: Стартовый, Оптимальный (выделен), Профессиональный (выделен), Бизнес.
+ * Карточки тарифов рендерит сервер (templates/partials/tariff_card.html),
+ * здесь — только выбор карточки, промокод и отправка платежа.
+ * Динамические тексты — через SFJ_t(ru, en) и перерисовка по событию sfj:lang.
  */
 (() => {
     const API_BASE = "/api/billing";
+    const t = (ru, en) => (window.SFJ_t ? window.SFJ_t(ru, en) : ru);
 
-    let config = null;
-    let selectedPackageId = null;
+    let selectedCard = null;
     let appliedPromo = null; // { code, discountAmount, finalPrice }
+    let submitting = false;
 
     const packagesEl = document.getElementById("paymentPackages");
     const payBtn = document.getElementById("paymentPayBtn");
@@ -498,9 +506,11 @@
 
     if (!packagesEl) return;
 
+    const cards = () => Array.from(packagesEl.querySelectorAll(".tariff-card"));
+    const loggedIn = () => !!(window.PhotoStudioAuth && window.PhotoStudioAuth.isLoggedIn());
+
     async function loadBalance() {
-        const loggedIn = window.PhotoStudioAuth && window.PhotoStudioAuth.isLoggedIn();
-        if (!loggedIn) {
+        if (!loggedIn()) {
             balanceSummaryEl.style.display = "none";
             return;
         }
@@ -525,101 +535,16 @@
         messageEl.className = "payment-message";
     }
 
-    // ===== Функция, создающая HTML карточек в правильном порядке =====
-    function renderPackages() {
-        packagesEl.innerHTML = "";
-        if (!config.packages.length) {
-            packagesEl.innerHTML =
-                '<div class="payment-empty-note">Пакеты пока не настроены. Загляните позже.</div>';
-            return;
-        }
-
-        // Сортируем по id — порядок как в БД
-        const sortedPackages = [...config.packages].sort((a, b) => a.id - b.id);
-
-        // Наборы фич по названию пакета
-        const featuresByTitle = {
-            'Стартовый': ['Базовые стили', 'Подходит для одного фото'],
-            'Оптимальный': ['Расширенный набор стилей', 'Приоритетная обработка', 'Редактирование изображения'],
-            'Профессиональный': ['Эксклюзивные стили', 'Отдельная персональная очередь', 'До 3 фото в одном заказе'],
-            'Бизнес': ['Для команд и агентств', 'Приоритетная поддержка 24/7', 'Неограниченный доступ ко всем стилям'],
-        };
-        const defaultFeatures = ['Моментальное зачисление на баланс', 'Все стили доступны сразу'];
-
-        // Карточки, которые выделяем цветом (по названию)
-        const highlightByTitle = {
-            'Оптимальный': 'highlight-1',
-            'Профессиональный': 'highlight-2',
-        };
-
-        sortedPackages.forEach((pkg) => {
-            const card = document.createElement("div");
-            const isPromo = pkg.promo_price !== null && pkg.promo_price !== undefined;
-            let highlightClass = isPromo ? 'has-promo' : (highlightByTitle[pkg.title] || '');
-            card.className = `tariff-card ${highlightClass}`.trim();
-            card.dataset.packageId = pkg.id;
-
-            const features = featuresByTitle[pkg.title] || defaultFeatures;
-            const featuresHtml = features.map(f => `
-                <li>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <path d="m9 11 3 3L22 4"/>
-                    </svg>
-                    ${f}
-                </li>
-            `).join('');
-
-            let badgeHtml = '';
-            if (isPromo) {
-                badgeHtml = `<div class="tariff-badge color-promo">🎁 Акция для новых</div>`;
-            } else if (highlightByTitle[pkg.title]) {
-                const cls = highlightByTitle[pkg.title] === 'highlight-1' ? 'color-1' : 'color-2';
-                badgeHtml = `<div class="tariff-badge ${cls}">🔥 Самый выгодный</div>`;
-            }
-
-            // Отображаем цену без копеек; если акция активна — старая цена зачёркнута
-            const displayPrice = Math.floor(pkg.price);
-            const priceHtml = isPromo
-                ? `
-                    <span class="tariff-price-old">${displayPrice} ₽</span>
-                    <span class="tariff-price promo-price">${Math.floor(pkg.promo_price)} ₽</span>
-                `
-                : `<span class="tariff-price">${displayPrice} ₽</span>`;
-            const promoNoteHtml = isPromo
-                ? `<div class="tariff-promo-note">Цена для первой генерации — доступно один раз</div>`
-                : '';
-
-            card.innerHTML = `
-                ${badgeHtml}
-                <h3 class="tariff-name">${pkg.title}</h3>
-                <div class="tariff-price-row">
-                    ${priceHtml}
-                </div>
-                ${promoNoteHtml}
-                <span class="tariff-generations">${pkg.generations} генераций</span>
-                <hr class="tariff-divider">
-                <ul class="tariff-features">
-                    ${featuresHtml}
-                </ul>
-                <div class="tariff-btn">Выбрать</div>
-            `;
-
-            card.addEventListener("click", () => selectPackage(pkg.id, card));
-            packagesEl.appendChild(card);
+    function selectCard(card, { scroll } = { scroll: false }) {
+        cards().forEach((el) => {
+            el.classList.toggle("selected", el === card);
+            el.setAttribute("aria-checked", String(el === card));
         });
-    }
-
-    function selectPackage(id, cardEl) {
-        selectedPackageId = id;
-        document
-            .querySelectorAll(".tariff-card")
-            .forEach((el) => el.classList.remove("selected"));
-        cardEl.classList.add("selected");
+        selectedCard = card;
         resetPromo();
         updatePayButton();
 
-        if (window.matchMedia("(max-width: 768px)").matches && payBtn) {
+        if (scroll && window.matchMedia("(max-width: 768px)").matches && payBtn) {
             const header = document.querySelector(".header");
             const headerHeight = header ? header.offsetHeight : 0;
             const targetPosition = payBtn.getBoundingClientRect().top + window.pageYOffset - headerHeight - 16;
@@ -627,15 +552,18 @@
         }
     }
 
+    function currentPrice() {
+        if (!selectedCard) return null;
+        return appliedPromo ? appliedPromo.finalPrice : Number(selectedCard.dataset.price);
+    }
+
     function updatePayButton() {
-        const loggedIn = window.PhotoStudioAuth && window.PhotoStudioAuth.isLoggedIn();
-        payBtn.disabled = !loggedIn || selectedPackageId === null;
-        if (selectedPackageId === null) {
-            payBtn.textContent = "Выберите пакет";
-        } else if (appliedPromo) {
-            payBtn.textContent = `Оплатить — ${Math.floor(appliedPromo.finalPrice)} ₽`;
+        if (submitting) return;
+        payBtn.disabled = !loggedIn() || !selectedCard;
+        if (!selectedCard) {
+            payBtn.textContent = t("Выберите пакет", "Choose a package");
         } else {
-            payBtn.textContent = "Оплатить";
+            payBtn.textContent = t(`Оплатить — ${currentPrice()} ₽`, `Pay ${currentPrice()} ₽`);
         }
     }
 
@@ -653,11 +581,15 @@
     async function applyPromo() {
         const code = promoInput.value.trim();
         if (!code) {
-            showPromoResult("Введите промокод.", "error");
+            showPromoResult(t("Введите промокод.", "Enter a promo code."), "error");
             return;
         }
-        if (selectedPackageId === null) {
-            showPromoResult("Сначала выберите пакет.", "error");
+        if (!selectedCard) {
+            showPromoResult(t("Сначала выберите пакет.", "Choose a package first."), "error");
+            return;
+        }
+        if (!loggedIn()) {
+            showPromoResult(t("Войдите, чтобы применить промокод.", "Sign in to apply a promo code."), "error");
             return;
         }
         promoApplyBtn.disabled = true;
@@ -665,12 +597,12 @@
             const resp = await window.PhotoStudioAuth.authFetch(`${API_BASE}/promo/check/`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code, package_id: selectedPackageId }),
+                body: JSON.stringify({ code, package_id: Number(selectedCard.dataset.packageId) }),
             });
             const data = await resp.json();
             if (!resp.ok) {
                 appliedPromo = null;
-                showPromoResult(data.message || "Промокод недействителен.", "error");
+                showPromoResult(data.message || t("Промокод недействителен.", "Invalid promo code."), "error");
             } else {
                 appliedPromo = {
                     code: data.code,
@@ -678,61 +610,50 @@
                     finalPrice: Number(data.final_price),
                 };
                 showPromoResult(
-                    `Промокод «${data.code}» применён: скидка ${Math.floor(appliedPromo.discountAmount)} ₽.`,
+                    t(`Промокод «${data.code}» применён: скидка ${Math.floor(appliedPromo.discountAmount)} ₽.`,
+                      `Promo code "${data.code}" applied: ${Math.floor(appliedPromo.discountAmount)} ₽ off.`),
                     "success"
                 );
             }
         } catch (e) {
             appliedPromo = null;
-            showPromoResult("Ошибка сети. Попробуйте ещё раз.", "error");
+            showPromoResult(t("Ошибка сети. Попробуйте ещё раз.", "Network error. Please try again."), "error");
         } finally {
             promoApplyBtn.disabled = false;
             updatePayButton();
         }
     }
 
-    async function loadConfig() {
-        try {
-            const doFetch = window.PhotoStudioAuth ? window.PhotoStudioAuth.authFetch : fetch;
-            const resp = await doFetch(`${API_BASE}/config/`);
-            if (!resp.ok) throw new Error("Не удалось загрузить пакеты");
-            config = await resp.json();
-        } catch (e) {
-            showMessage("Не удалось загрузить пакеты. Обновите страницу.", "error");
-            return;
-        }
-
-        renderPackages();
-        updatePayButton();
-    }
-
     async function submitPayment() {
+        if (!selectedCard) return;
         clearMessage();
+        submitting = true;
         payBtn.disabled = true;
-        payBtn.textContent = "Создаём платёж…";
+        payBtn.textContent = t("Создаём платёж…", "Creating payment…");
 
         try {
+            const packageId = Number(selectedCard.dataset.packageId);
             const resp = await window.PhotoStudioAuth.authFetch(`${API_BASE}/topup/`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    package_id: selectedPackageId,
+                    package_id: packageId,
                     promo_code: appliedPromo ? appliedPromo.code : undefined,
                 }),
             });
 
             if (resp.status === 401) {
-                showMessage("Сессия истекла — войдите заново.", "error");
+                showMessage(t("Сессия истекла — войдите заново.", "Your session has expired — please sign in again."), "error");
                 return;
             }
 
             const data = await resp.json();
             if (!resp.ok) {
                 const errors = {
-                    package_id_required: "Выберите пакет.",
-                    invalid_package: "Пакет не найден или отключён.",
+                    package_id_required: t("Выберите пакет.", "Choose a package."),
+                    invalid_package: t("Пакет не найден или отключён.", "This package is unavailable."),
                 };
-                showMessage(data.message || errors[data.error] || "Не удалось создать платёж.", "error");
+                showMessage(data.message || errors[data.error] || t("Не удалось создать платёж.", "Couldn't create the payment."), "error");
                 if (data.error && data.error.startsWith("promo_")) {
                     resetPromo();
                 }
@@ -750,12 +671,11 @@
                 payanywayForm.appendChild(input);
             });
 
-            showMessage("Перенаправляем на страницу оплаты через СБП…", "info");
+            showMessage(t("Перенаправляем на страницу оплаты через СБП…", "Redirecting to the SBP payment page…"), "info");
 
-            const pkg = config.packages.find((p) => p.id === selectedPackageId);
             const goalParams = {
-                package_id: selectedPackageId,
-                price: appliedPromo ? appliedPromo.finalPrice : (pkg ? (pkg.promo_price ?? pkg.price) : undefined),
+                package_id: packageId,
+                price: currentPrice(),
                 promo_code: appliedPromo ? appliedPromo.code : undefined,
             };
             if (window.ymGoal) {
@@ -764,17 +684,29 @@
                 payanywayForm.submit();
             }
         } catch (e) {
-            showMessage("Ошибка сети. Попробуйте ещё раз.", "error");
+            showMessage(t("Ошибка сети. Попробуйте ещё раз.", "Network error. Please try again."), "error");
         } finally {
+            submitting = false;
             updatePayButton();
         }
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-        const loggedIn = window.PhotoStudioAuth && window.PhotoStudioAuth.isLoggedIn();
-        if (!loggedIn) {
+        if (!loggedIn()) {
             guestNoticeEl.style.display = "block";
         }
+        cards().forEach((card) => {
+            card.addEventListener("click", () => selectCard(card, { scroll: true }));
+            card.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectCard(card, { scroll: true });
+                }
+            });
+        });
+        selectedCard = packagesEl.querySelector(".tariff-card.selected");
+        updatePayButton();
+
         payBtn.addEventListener("click", submitPayment);
         promoApplyBtn.addEventListener("click", applyPromo);
         promoInput.addEventListener("keydown", (e) => {
@@ -783,7 +715,7 @@
                 applyPromo();
             }
         });
-        loadConfig();
+        document.addEventListener("sfj:lang", updatePayButton);
         loadBalance();
     });
 })();

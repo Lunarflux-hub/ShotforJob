@@ -16,6 +16,7 @@ from django.core.files.base import ContentFile
 from django.core.validators import validate_email
 from django.db import transaction
 
+from apps.billing.catalog import can_buy
 from apps.billing.models import GenerationPackage
 from apps.billing.services import (
     InsufficientBalanceError,
@@ -209,7 +210,9 @@ class TariffOption:
 
 def list_tariffs(user) -> list[TariffOption]:
     options = []
-    for package in GenerationPackage.objects.filter(is_active=True):
+    for package in GenerationPackage.objects.filter(is_active=True).order_by("sort_order", "id"):
+        if not can_buy(package, user):
+            continue  # допродажа — только тем, кто уже платил
         amount = base_amount_for(package, user)
         options.append(
             TariffOption(
@@ -233,9 +236,8 @@ class CreatePaymentResult:
 
 
 def create_bot_payment(user, package_id: int) -> CreatePaymentResult:
-    try:
-        package = GenerationPackage.objects.get(id=package_id, is_active=True)
-    except GenerationPackage.DoesNotExist:
+    package = GenerationPackage.objects.filter(id=package_id).first()
+    if package is None or not can_buy(package, user):
         return CreatePaymentResult(payment_id=None, pay_url=None, error="invalid_package")
 
     payment = create_topup_payment(user, package)

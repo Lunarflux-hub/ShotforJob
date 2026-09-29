@@ -12,8 +12,31 @@ promo_code_validator = RegexValidator(
 
 
 class GenerationPackage(models.Model):
-    """Пакет генераций, доступный для покупки (кнопки на фронте)."""
+    """Пакет генераций, доступный для покупки (кнопки на фронте).
+
+    Карточки тарифов рендерятся на сервере (см. apps/billing/catalog.py и
+    templates/partials/tariff_card.html) — всё, что на них написано, берётся
+    из этих полей, а не хардкодится в шаблонах/JS."""
+
+    class Visibility(models.TextChoices):
+        PUBLIC = "public", "Всем"
+        # Допродажа: не показывается в общем списке тарифов и продаётся только
+        # тем, у кого уже есть хотя бы одна оплата (см. catalog.can_buy)
+        PAID_ONLY = "paid_only", "Только уже платившим"
+
     title = models.CharField(max_length=100)
+    title_en = models.CharField(max_length=100, blank=True)
+    # Стабильный идентификатор для ссылок (/payment/?package=optimal) — не
+    # зависит от id в БД и переименований
+    slug = models.SlugField(max_length=32, blank=True, db_index=True)
+    visibility = models.CharField(max_length=10, choices=Visibility.choices, default=Visibility.PUBLIC)
+    is_featured = models.BooleanField(
+        default=False, help_text="Выделен визуально и выбран по умолчанию на странице оплаты"
+    )
+    badge = models.CharField(max_length=40, blank=True, help_text="Бейдж на карточке, например «Популярный»")
+    badge_en = models.CharField(max_length=40, blank=True)
+    features = models.TextField(blank=True, help_text="Пункты на карточке — по одному в строке")
+    features_en = models.TextField(blank=True, help_text="То же на английском, в том же порядке")
     price = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default="RUB")
     generations = models.PositiveIntegerField(help_text="Сколько генераций даёт этот пакет")

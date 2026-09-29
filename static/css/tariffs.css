@@ -1,0 +1,39 @@
+/* Дополнения к карточкам тарифов (templates/partials/tariff_card.html),
+   общие для главной и /payment/. Базовые стили .tariff-card — в самих
+   шаблонах страниц. */
+
+.tariff-unit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 2px 0 6px;
+}
+.tariff-per-photo {
+    font-size: 14px;
+    opacity: 0.7;
+}
+.tariff-savings {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 40px;
+    background: #e6f7ee;
+    color: #1c8a53;
+}
+.tariff-card.highlight-1 .tariff-per-photo { opacity: 0.85; }
+.tariff-card.highlight-1 .tariff-savings { background: rgba(255, 255, 255, 0.22); color: #ffffff; }
+
+/* «Популярный» — чуть крупнее соседей, чтобы взгляд падал на него первым */
+@media (min-width: 769px) {
+    .tariff-card.is-featured { transform: scale(1.04); z-index: 1; }
+    .tariff-card.is-featured:hover { transform: scale(1.04) translateY(-4px); }
+}
+
+.tariff-card[role="radio"]:focus-visible {
+    outline: 3px solid #0066FF;
+    outline-offset: 3px;
+}
+
+[data-theme="dark"] .tariff-savings { background: rgba(34, 197, 94, 0.16); color: #4ade80; }
+[data-theme="dark"] .tariff-card.highlight-1 .tariff-savings { background: rgba(255, 255, 255, 0.18); color: #ffffff; }

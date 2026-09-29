@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.billing import catalog
 from apps.billing.services import InsufficientBalanceError, spend_generation
 
 from .models import Order, PhotoStyle, UploadedPhoto
@@ -152,6 +153,9 @@ class LandingView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["tariffs"] = catalog.public_tariffs()
+        context["min_price_per_photo"] = catalog.min_price_per_photo()
+        context["min_package_price"] = catalog.min_package_price()
         context["reviews"] = landing_reviews()
         # ~8с на карточку — скорость ленты не зависит от числа отзывов
         context["reviews_duration"] = len(context["reviews"]) * 8

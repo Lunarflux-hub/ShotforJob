@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import TemplateView
 
-from apps.billing.views import BotPayRedirectView
+from apps.billing.views import BotPayRedirectView, PaymentPageView
 from apps.photos.views import LandingView
 
 urlpatterns = [
@@ -43,7 +43,7 @@ urlpatterns = [
         name="yandex_verification",
     ),
     path("workstation/", TemplateView.as_view(template_name="workstation.html"), name="workstation"),
-    path("payment/", TemplateView.as_view(template_name="payment.html"), name="payment"),
+    path("payment/", PaymentPageView.as_view(), name="payment"),
     path("billing/success/", TemplateView.as_view(template_name="billing_success.html"), name="billing_success"),
     path("billing/fail/", TemplateView.as_view(template_name="billing_fail.html"), name="billing_fail"),
     path("billing/history/", TemplateView.as_view(template_name="billing_history.html"), name="billing_history"),

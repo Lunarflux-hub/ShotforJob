@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
+from django.views.generic import TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
@@ -17,7 +18,7 @@ from .models import GenerationPackage, Payment, GenerationLedgerEntry, PromoCode
 from .payanyway import build_payment_request, verify_pay_url_signature
 from .serializers import PaymentSerializer
 from .tasks import send_payment_receipt_email, notify_payment_telegram
-from . import services
+from . import catalog, services
 
 _base_amount = services.base_amount_for  # общая с bot-топапом логика акционной цены (services.py)
 
@@ -85,25 +86,38 @@ class PollingUserRateThrottle(UserRateThrottle):
 
 
 class BillingConfigView(APIView):
-    """GET /api/billing/config/ — список пакетов генераций, доступных для покупки."""
+    """GET /api/billing/config/ — пакеты, доступные этому пользователю
+    (допродажа — только тем, кто уже платил; см. catalog.can_buy)."""
 
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
         user = request.user if request.user.is_authenticated else None
-        has_paid_before = bool(
-            user and Payment.objects.filter(user=user, status=Payment.Status.PAID).exists()
-        )
+        has_paid_before = catalog.has_paid(user)
+
+        tariffs = catalog.public_tariffs()
+        if has_paid_before:
+            upsell = GenerationPackage.objects.filter(
+                is_active=True, visibility=GenerationPackage.Visibility.PAID_ONLY
+            ).order_by("sort_order", "id")
+            tariffs += catalog._build(list(upsell))
 
         packages = []
-        for p in GenerationPackage.objects.filter(is_active=True):
+        for t in tariffs:
+            p = t.package
             promo_active = p.first_purchase_price is not None and not has_paid_before
             packages.append(
                 {
                     "id": p.id,
+                    "slug": p.slug,
                     "title": p.title,
+                    "title_en": p.title_en,
                     "price": str(p.price),
                     "generations": p.generations,
+                    "per_photo": t.per_photo,
+                    "savings_percent": t.savings_percent,
+                    "is_featured": p.is_featured,
+                    "visibility": p.visibility,
                     "promo_price": str(p.first_purchase_price) if promo_active else None,
                 }
             )
@@ -119,9 +133,8 @@ class PromoCodeCheckView(APIView):
         package_id = request.data.get("package_id")
         if not package_id:
             return Response({"error": "package_id_required"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            package = GenerationPackage.objects.get(id=package_id, is_active=True)
-        except GenerationPackage.DoesNotExist:
+        package = GenerationPackage.objects.filter(id=package_id).first()
+        if package is None or not catalog.can_buy(package, request.user):
             return Response({"error": "invalid_package"}, status=status.HTTP_400_BAD_REQUEST)
 
         promo, error = _resolve_promo_code(request.data.get("code"), package, request.user)
@@ -159,9 +172,8 @@ class CreateTopupView(APIView):
         if not package_id:
             return Response({"error": "package_id_required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            package = GenerationPackage.objects.get(id=package_id, is_active=True)
-        except GenerationPackage.DoesNotExist:
+        package = GenerationPackage.objects.filter(id=package_id).first()
+        if package is None or not catalog.can_buy(package, request.user):
             return Response({"error": "invalid_package"}, status=status.HTTP_400_BAD_REQUEST)
 
         amount = _base_amount(package, request.user)
@@ -373,3 +385,24 @@ class BotPayRedirectView(View):
             request, "billing_bot_pay.html",
             {"action_url": req["action_url"], "fields": req["fields"]},
         )
+
+class PaymentPageView(TemplateView):
+    """/payment/ — карточки тарифов рендерятся на сервере (цены видны сразу и
+    без JS). ?package=<slug> — какой пакет выбрать заранее (ссылки с главной,
+    «Скачать в HD»); без него выбран пакет с is_featured."""
+
+    template_name = "payment.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        tariffs = catalog.public_tariffs()
+        wanted = self.request.GET.get("package", "")
+        selected = next((t for t in tariffs if t.slug and t.slug == wanted), None) or next(
+            (t for t in tariffs if t.package.is_featured), tariffs[0] if tariffs else None
+        )
+        context["tariffs"] = tariffs
+        context["selected_package_id"] = selected.id if selected else None
+        # Допродажа (paid_only) на сервере не рендерится — сервер не знает, кто
+        # смотрит (авторизация по JWT в браузере); её дорисовывает JS для платившим
+        context["requested_package"] = wanted
+        return context

@@ -1196,8 +1196,13 @@
             document.documentElement.setAttribute('lang', lang);
             window.SFJ_LANG = lang;
             try { localStorage.setItem('siteLang', lang); } catch (e) {}
+            // Тексты, которые JS меняет на лету (кнопка «Оплатить — 199 ₽» и т.п.),
+            // нельзя вести через data-en — страницы перерисовывают их по этому событию
+            document.dispatchEvent(new CustomEvent('sfj:lang', { detail: lang }));
         }
         window.SFJ_applyLang = applyLang;
+        // Выбор текста по текущему языку для динамических строк: SFJ_t('Оплатить', 'Pay')
+        window.SFJ_t = function(ru, en) { return window.SFJ_LANG === 'en' ? en : ru; };
         document.addEventListener('DOMContentLoaded', function() {
             var saved = 'ru';
             try { saved = localStorage.getItem('siteLang') || 'ru'; } catch (e) {}
