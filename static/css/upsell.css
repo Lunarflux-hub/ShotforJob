@@ -1,0 +1,29 @@
+/* Блок допродажи «Ещё 5 вариантов в другом стиле» (static/js/upsell.js) —
+   /workstation и /results */
+.upsell-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding: 18px 20px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #0066FF, #5856D6);
+    color: #ffffff;
+    text-align: left;
+}
+.upsell-card .upsell-text { flex: 1 1 220px; min-width: 0; }
+.upsell-card .upsell-title { font-weight: 700; font-size: 16px; line-height: 1.35; }
+.upsell-card .upsell-sub { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+.upsell-card .upsell-btn {
+    flex-shrink: 0;
+    padding: 11px 24px;
+    border-radius: 40px;
+    background: #ffffff;
+    color: #0052CC;
+    font-weight: 600;
+    font-size: 15px;
+    text-decoration: none;
+}
+.upsell-card .upsell-btn:hover { background: #eaf1ff; }

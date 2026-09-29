@@ -2,11 +2,13 @@
 Карточка тарифа — общая для главной (mode="link": кнопка ведёт на /payment/)
 и страницы оплаты (mode="select": карточка выбирается кликом, см. payment.html).
 Все цифры — из БД через apps/billing/catalog.py.
-Параметры: t — catalog.Tariff, mode, selected_id — id выбранного пакета (для mode="select").
+Параметры: t — catalog.Tariff, mode, selected_id — id выбранного пакета (для mode="select"),
+paid_only — карточка допродажи: рендерится скрытой, её показывает JS страницы оплаты.
 {% endcomment %}
 {% with p=t.package %}
 <div class="tariff-card{% if p.is_featured %} highlight-1 is-featured{% endif %}{% if selected_id == p.id %} selected{% endif %}"
      data-package-id="{{ p.id }}" data-package-slug="{{ p.slug }}" data-price="{{ t.price_display }}"
+     {% if paid_only %}hidden data-paid-only="1"{% endif %}
      {% if mode == "select" %}role="radio" tabindex="0" aria-checked="{% if selected_id == p.id %}true{% else %}false{% endif %}"{% endif %}>
     {% if p.badge %}<div class="tariff-badge color-1" data-en="{{ p.badge_en|default:p.badge }}">{{ p.badge }}</div>{% endif %}
     <h3 class="tariff-name" data-en="{{ p.title_en|default:p.title }}">{{ p.title }}</h3>

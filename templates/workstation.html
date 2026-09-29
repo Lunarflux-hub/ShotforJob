@@ -4,6 +4,7 @@
 {% block title %}ShotForJob — мастерская{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/upsell.css' %}">
 <style>
     /* ===== Стили, специфичные для страницы мастерской ===== */
     body, .card, .field-label, .upload-drop-text, .clothing-option, .field-hint {
@@ -1147,6 +1148,15 @@
                     <a id="downloadBtn" href="" download class="btn-pill primary">Скачать</a>
                 </div>
 
+<!-- Допродажа — только тем, кто уже платил (static/js/upsell.js) -->
+                <div id="upsellCard" class="upsell-card d-none">
+                    <div class="upsell-text">
+                        <div class="upsell-title"></div>
+                        <div class="upsell-sub"></div>
+                    </div>
+                    <a class="upsell-btn" href="/payment/"></a>
+                </div>
+
                 <!-- Отзыв о генерации: POST /api/orders/{id}/review/ (static/js/main.js) -->
                 <div id="reviewBlock" class="review-block d-none">
                     <div id="reviewForm">
@@ -2066,5 +2076,6 @@
 })();
 </script>
 <script src="{% static 'js/unlock.js' %}"></script>
+<script src="{% static 'js/upsell.js' %}"></script>
 <script src="{% static 'js/main.js' %}"></script>
 {% endblock %}

@@ -476,6 +476,9 @@
             {% empty %}
                 <div class="payment-empty-note" data-en="Packages are not set up yet. Please check back later.">Пакеты пока не настроены. Загляните позже.</div>
             {% endfor %}
+            {% for t in hidden_tariffs %}
+                {% include "partials/tariff_card.html" with t=t mode="select" paid_only=True %}
+            {% endfor %}
         </div>
 
         <div class="promo-row">
@@ -710,6 +713,28 @@
         }
     }
 
+    // Допродажа (?package=more5): карточка отрендерена скрытой; показываем и
+    // выбираем её, только если API отдаёт этот пакет этому пользователю
+    // (он уже платил). Иначе убираем — сервер такой платёж всё равно отклонит.
+    async function revealUpsell() {
+        const card = packagesEl.querySelector(".tariff-card[data-paid-only]");
+        if (!card) return;
+        let available = false;
+        if (loggedIn()) {
+            try {
+                const resp = await window.PhotoStudioAuth.authFetch(`${API_BASE}/config/`);
+                const data = resp.ok ? await resp.json() : { packages: [] };
+                available = data.packages.some((p) => p.slug === card.dataset.packageSlug);
+            } catch (e) { /* сеть — остаёмся на основной линейке */ }
+        }
+        if (!available) {
+            card.remove();
+            return;
+        }
+        card.hidden = false;
+        selectCard(card);
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         if (!loggedIn()) {
             guestNoticeEl.style.display = "block";
@@ -725,6 +750,7 @@
         });
         selectedCard = packagesEl.querySelector(".tariff-card.selected");
         updatePayButton();
+        revealUpsell();
 
         payBtn.addEventListener("click", submitPayment);
         promoApplyBtn.addEventListener("click", applyPromo);

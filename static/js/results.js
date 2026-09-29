@@ -102,6 +102,10 @@
 
             orders.forEach((order) => listEl.appendChild(renderOrder(order)));
             listEl.classList.remove("d-none");
+            // «Ещё 5 вариантов в другом стиле» — только уже платившим (upsell.js)
+            if (orders.some((o) => o.results && o.results.length) && window.SFJUpsell) {
+                window.SFJUpsell.show(document.getElementById("upsellCard"));
+            }
         } catch (e) {
             loadingEl.classList.add("d-none");
             errorEl.textContent = e.message;

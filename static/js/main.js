@@ -248,6 +248,8 @@
             downloadBtn.textContent = t("Скачать", "Download");
             previewNote.classList.add("d-none");
             setupReview(currentOrder);
+            // «Ещё 5 вариантов в другом стиле» — только уже платившим (upsell.js)
+            window.SFJUpsell && window.SFJUpsell.show(document.getElementById("upsellCard"));
         }
     }
 

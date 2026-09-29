@@ -64,12 +64,21 @@ def can_buy(package: GenerationPackage, user) -> bool:
     return True
 
 
-def _build(packages: list[GenerationPackage]) -> list[Tariff]:
+def _public_packages() -> list[GenerationPackage]:
+    return list(
+        GenerationPackage.objects.filter(
+            is_active=True, visibility=GenerationPackage.Visibility.PUBLIC
+        ).order_by("sort_order", "id")
+    )
+
+
+def _build(packages: list[GenerationPackage], base: Decimal | None = None) -> list[Tariff]:
     if not packages:
         return []
     per_photo = {p.id: p.price / p.generations for p in packages if p.generations}
-    # База для «экономии» — самый дорогой за фото пакет линейки (сейчас «Старт»)
-    base = max(per_photo.values()) if per_photo else None
+    # База для «экономии» — самый дорогой за фото пакет основной линейки (сейчас «Старт»)
+    if base is None:
+        base = max(per_photo.values()) if per_photo else None
     tariffs = []
     for p in packages:
         unit = per_photo.get(p.id, p.price)
@@ -80,12 +89,19 @@ def _build(packages: list[GenerationPackage]) -> list[Tariff]:
 
 def public_tariffs() -> list[Tariff]:
     """Основная линейка — то, что видят все (главная, /payment/)."""
-    packages = list(
-        GenerationPackage.objects.filter(
-            is_active=True, visibility=GenerationPackage.Visibility.PUBLIC
-        ).order_by("sort_order", "id")
-    )
-    return _build(packages)
+    return _build(_public_packages())
+
+
+def upsell_tariffs() -> list[Tariff]:
+    """Допродажа (paid_only) — экономия считается от основной линейки,
+    чтобы «−39%» на карточке было честным сравнением со «Стартом».
+    Кому её показывать, решает вызывающий код через has_paid/can_buy."""
+    public = [p for p in _public_packages() if p.generations]
+    base = max((p.price / p.generations for p in public), default=None)
+    upsell = GenerationPackage.objects.filter(
+        is_active=True, visibility=GenerationPackage.Visibility.PAID_ONLY
+    ).order_by("sort_order", "id")
+    return _build(list(upsell), base=base)
 
 
 def min_price_per_photo() -> int | None:

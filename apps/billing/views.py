@@ -100,10 +100,7 @@ class BillingConfigView(APIView):
 
         tariffs = catalog.public_tariffs()
         if has_paid_before:
-            upsell = GenerationPackage.objects.filter(
-                is_active=True, visibility=GenerationPackage.Visibility.PAID_ONLY
-            ).order_by("sort_order", "id")
-            tariffs += catalog._build(list(upsell))
+            tariffs += catalog.upsell_tariffs()
 
         packages = []
         for t in tariffs:
@@ -422,6 +419,10 @@ class PaymentPageView(TemplateView):
         )
         context["tariffs"] = tariffs
         context["selected_package_id"] = selected.id if selected else None
+        # Допродажа по прямой ссылке (?package=more5): рендерим карточку скрытой —
+        # JS покажет и выберет её, только если API подтвердит, что пользователь
+        # уже платил (иначе сервер всё равно отклонит такой платёж)
+        context["hidden_tariffs"] = [t for t in catalog.upsell_tariffs() if wanted and t.slug == wanted]
         # Допродажа (paid_only) на сервере не рендерится — сервер не знает, кто
         # смотрит (авторизация по JWT в браузере); её дорисовывает JS для платившим
         context["requested_package"] = wanted

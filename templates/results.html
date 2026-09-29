@@ -4,6 +4,7 @@
 {% block title %}Мои результаты{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/upsell.css' %}">
 <style>
     /* ===== Критично: скрытие элементов по умолчанию ===== */
     .d-none {
@@ -166,6 +167,14 @@
         </div>
         <div id="resultsError" class="d-none"></div>
         <p id="resultsUnlockMessage" class="unlock-message d-none" aria-live="polite"></p>
+        <!-- Допродажа — только тем, кто уже платил (static/js/upsell.js) -->
+        <div id="upsellCard" class="upsell-card d-none" style="margin: 0 0 20px;">
+            <div class="upsell-text">
+                <div class="upsell-title"></div>
+                <div class="upsell-sub"></div>
+            </div>
+            <a class="upsell-btn" href="/payment/"></a>
+        </div>
         <ul id="resultsList" class="d-none"></ul>
     </div>
 {% endblock %}
@@ -173,5 +182,6 @@
 {% block extra_js %}
     <!-- Скрипт для работы с результатами (auth.js уже загружен в base) -->
     <script src="{% static 'js/unlock.js' %}"></script>
+    <script src="{% static 'js/upsell.js' %}"></script>
     <script src="{% static 'js/results.js' %}"></script>
 {% endblock %}
