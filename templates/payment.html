@@ -647,6 +647,12 @@
 
     async function submitPayment() {
         if (!selectedCard) return;
+        // Цель Метрики: клик «Оплатить» (старая цель payment ниже — как была,
+        // перед редиректом на СБП, чтобы не рвать историю)
+        window.ymReach && window.ymReach("pay_click", {
+            package: selectedCard.dataset.packageSlug,
+            price: currentPrice(),
+        });
         clearMessage();
         submitting = true;
         payBtn.disabled = true;

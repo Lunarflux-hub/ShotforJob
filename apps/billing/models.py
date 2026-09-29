@@ -180,7 +180,22 @@ class Payment(models.Model):
         choices=Status.choices,
         default=Status.PENDING
     )
+    # Тестовый платёж — не попадает в отчёт по продажам и цель purchase.
+    # Ставится автоматически (services.is_test_payment): тестовый режим
+    # PayAnyWay, staff-пользователь или сумма < 10 ₽.
     is_test = models.BooleanField(default=False)
+
+    # Источник регистрации покупателя (копия accounts.UserAcquisition на
+    # момент платежа) — для выручки по источникам и оплат с Директа
+    utm_source = models.CharField(max_length=100, blank=True)
+    utm_medium = models.CharField(max_length=100, blank=True)
+    utm_campaign = models.CharField(max_length=200, blank=True)
+    utm_content = models.CharField(max_length=200, blank=True)
+    utm_term = models.CharField(max_length=200, blank=True)
+    yclid = models.CharField(max_length=100, blank=True)
+    # Когда страница чека отправила цель purchase в Метрику — повторно (при
+    # перезагрузке) она не отправится (views.PurchaseGoalClaimView)
+    purchase_reported_at = models.DateTimeField(null=True, blank=True)
 
     payanyway_operation_id = models.CharField(max_length=64, blank=True)  # MNT_OPERATION_ID
     raw_result_payload = models.JSONField(null=True, blank=True)

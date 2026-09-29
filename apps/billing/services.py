@@ -15,6 +15,8 @@ from django.conf import settings
 from django.core import signing
 from django.db import transaction
 
+from apps.accounts import attribution
+
 from .models import GenerationLedgerEntry, GenerationPackage, Payment, UserBalance
 
 # Соль для подписи ссылки оплаты (см. make_pay_link/verify_pay_link_token) —
@@ -112,6 +114,15 @@ def base_amount_for(package: GenerationPackage, user) -> Decimal:
     return package.price
 
 
+TEST_AMOUNT_THRESHOLD = Decimal("10")
+
+
+def is_test_payment(user, amount: Decimal) -> bool:
+    """Платёж не считается реальной выручкой: тестовый режим PayAnyWay,
+    сотрудник (staff) или символическая сумма меньше 10 ₽."""
+    return bool(settings.PAYANYWAY_TEST_MODE or user.is_staff or amount < TEST_AMOUNT_THRESHOLD)
+
+
 def create_topup_payment(user, package: GenerationPackage) -> Payment:
     """Создаёт Payment(status=pending) на полную/акционную цену пакета —
     без промокода (промокоды пока доступны только на сайте)."""
@@ -121,7 +132,8 @@ def create_topup_payment(user, package: GenerationPackage) -> Payment:
         package=package,
         amount=amount,
         generations_granted=package.generations,
-        is_test=settings.PAYANYWAY_TEST_MODE,
+        is_test=is_test_payment(user, amount),
+        **attribution.fields_for_payment(user),
     )
 
 

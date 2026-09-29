@@ -1363,6 +1363,8 @@
         clearError();
         const imageFiles = files.filter(f => f.type.startsWith("image/"));
         if (!imageFiles.length) return;
+        // Цель Метрики: пользователь загрузил фото (выбором файла или перетаскиванием)
+        window.ymReach && window.ymReach("upload_photo", { count: imageFiles.length });
 
         const tooBig = imageFiles.find(f => f.size > MAX_SIZE_MB * 1024 * 1024);
         if (tooBig) {

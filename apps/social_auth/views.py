@@ -6,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.accounts import attribution
+
 from .models import SocialAccount
 from .serializers import GoogleLoginSerializer, YandexLoginSerializer
 from .services.google import GoogleAuthError, verify_google_id_token
@@ -29,18 +31,20 @@ def _unique_username(base: str) -> str:
 
 
 def _get_or_create_user_for_social(provider: str, provider_user_id: str, email: str | None, name: str | None):
+    """Возвращает (user, created) — created=True только для нового аккаунта."""
     social_account = (
         SocialAccount.objects.filter(provider=provider, provider_user_id=provider_user_id)
         .select_related("user")
         .first()
     )
     if social_account:
-        return social_account.user
+        return social_account.user, False
 
     with transaction.atomic():
         # Если пользователь уже регистрировался обычным способом с таким же
         # email — привязываем соцаккаунт к нему, а не плодим дубликат.
         user = User.objects.filter(email=email).first() if email else None
+        created = user is None
 
         if not user:
             base_username = email.split("@")[0] if email else f"{provider}_{provider_user_id}"
@@ -57,7 +61,7 @@ def _get_or_create_user_for_social(provider: str, provider_user_id: str, email: 
         SocialAccount.objects.create(
             user=user, provider=provider, provider_user_id=provider_user_id, email=email or ""
         )
-        return user
+        return user, created
 
 
 class GoogleLoginView(APIView):
@@ -78,12 +82,14 @@ class GoogleLoginView(APIView):
         except GoogleAuthError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
 
-        user = _get_or_create_user_for_social(
+        user, created = _get_or_create_user_for_social(
             provider=SocialAccount.Provider.GOOGLE,
             provider_user_id=profile["provider_user_id"],
             email=profile.get("email"),
             name=profile.get("name"),
         )
+        if created:
+            attribution.capture_for_new_user(request, user)
         return Response(
             {
                 **_issue_tokens_for_user(user),
@@ -114,12 +120,14 @@ class YandexLoginView(APIView):
         except YandexAuthError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
 
-        user = _get_or_create_user_for_social(
+        user, created = _get_or_create_user_for_social(
             provider=SocialAccount.Provider.YANDEX,
             provider_user_id=profile["provider_user_id"],
             email=profile.get("email"),
             name=profile.get("name"),
         )
+        if created:
+            attribution.capture_for_new_user(request, user)
         return Response(
             {
                 **_issue_tokens_for_user(user),

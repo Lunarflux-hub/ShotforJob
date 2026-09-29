@@ -1,0 +1,93 @@
+{% extends "admin/base_site.html" %}
+{% comment %}Отчёт по продажам — apps/billing/admin.py (PaymentAdmin.sales_report_view), данные — apps/billing/reports.py{% endcomment %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Начало</a> ›
+    <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a> ›
+    <a href="{% url 'admin:billing_payment_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a> ›
+    Отчёт по продажам
+</div>
+{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+    .sr-form { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 8px 0 20px; }
+    .sr-form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+    .sr-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .sr-kpi { border: 1px solid var(--hairline-color); border-radius: 8px; padding: 12px 14px; }
+    .sr-kpi b { display: block; font-size: 22px; margin-top: 4px; }
+    .sr-note { color: var(--body-quiet-color); margin-bottom: 16px; }
+    .sr-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-top: 24px; }
+    table.sr { width: 100%; }
+    table.sr td.num, table.sr th.num { text-align: right; }
+    tr.sr-empty td { color: var(--body-quiet-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form method="get" class="sr-form">
+        <label>С <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}"></label>
+        <label>По <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}"></label>
+        <input type="submit" value="Показать">
+    </form>
+    <p class="sr-note">Только реальные оплаты: статус «Оплачен», без тестовых (тестовый режим, сотрудники, суммы меньше 10 ₽).</p>
+
+    {% with t=report.total %}
+    <div class="sr-kpis">
+        <div class="sr-kpi">Выручка<b>{{ t.revenue|floatformat:0 }} ₽</b></div>
+        <div class="sr-kpi">Оплат<b>{{ t.payments }}</b></div>
+        <div class="sr-kpi">Уникальных покупателей<b>{{ t.buyers_count }}</b></div>
+        <div class="sr-kpi">Средний чек<b>{{ t.avg_check|floatformat:0 }} ₽</b></div>
+        <div class="sr-kpi">Доля повторных покупок<b>{{ t.repeat_share }}%</b></div>
+    </div>
+    {% endwith %}
+
+    <h2>По дням</h2>
+    <table class="sr">
+        <thead><tr>
+            <th>День</th><th class="num">Выручка, ₽</th><th class="num">Оплат</th>
+            <th class="num">Покупателей</th><th class="num">Средний чек, ₽</th><th class="num">Повторные</th>
+        </tr></thead>
+        <tbody>
+        {% for row in report.days %}
+            <tr{% if not row.payments %} class="sr-empty"{% endif %}>
+                <td>{{ row.label }}</td>
+                <td class="num">{{ row.revenue|floatformat:0 }}</td>
+                <td class="num">{{ row.payments }}</td>
+                <td class="num">{{ row.buyers_count }}</td>
+                <td class="num">{% if row.payments %}{{ row.avg_check|floatformat:0 }}{% else %}—{% endif %}</td>
+                <td class="num">{% if row.payments %}{{ row.repeat_share }}%{% else %}—{% endif %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="sr-tables">
+        <div>
+            <h2>По пакетам</h2>
+            <table class="sr">
+                <thead><tr><th>Пакет</th><th class="num">Оплат</th><th class="num">Выручка, ₽</th><th class="num">Доля выручки</th></tr></thead>
+                <tbody>
+                {% for row in report.by_package %}
+                    <tr><td>{{ row.label }}</td><td class="num">{{ row.payments }}</td><td class="num">{{ row.revenue|floatformat:0 }}</td>
+                        <td class="num">{% widthratio row.revenue report.total.revenue 100 %}%</td></tr>
+                {% empty %}<tr class="sr-empty"><td colspan="4">Нет оплат за период</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h2>По источникам</h2>
+            <table class="sr">
+                <thead><tr><th>Источник (utm_source / medium)</th><th class="num">Оплат</th><th class="num">Покупателей</th><th class="num">Выручка, ₽</th></tr></thead>
+                <tbody>
+                {% for row in report.by_source %}
+                    <tr><td>{{ row.label }}</td><td class="num">{{ row.payments }}</td><td class="num">{{ row.buyers_count }}</td><td class="num">{{ row.revenue|floatformat:0 }}</td></tr>
+                {% empty %}<tr class="sr-empty"><td colspan="4">Нет оплат за период</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

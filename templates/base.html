@@ -43,6 +43,37 @@
             }
             setTimeout(finish, 300);
         };
+
+        // Цель без продолжения (не перед редиректом) — upload_photo, preview_generated, pay_click, purchase
+        window.ymReach = function (goalName, params) {
+            try {
+                if (typeof window.ym === "function" && window.YM_COUNTER_ID) {
+                    window.ym(window.YM_COUNTER_ID, "reachGoal", goalName, params || {});
+                }
+            } catch (e) { /* аналитика не должна ломать страницу */ }
+        };
+
+        // Атрибуция: UTM-метки и yclid (клик Директа) из адреса — в cookie sfj_attr
+        // на 90 дней. Сервер при регистрации переносит их в профиль
+        // (apps/accounts/attribution.py), а оттуда — в каждый платёж.
+        // Перезаписываем только когда в адресе есть новые метки (последний
+        // размеченный заход), обычные переходы по сайту их не стирают.
+        (function () {
+            try {
+                var params = new URLSearchParams(location.search);
+                var keys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "yclid"];
+                var data = {};
+                keys.forEach(function (k) { if (params.get(k)) data[k] = params.get(k).slice(0, 200); });
+                if (!Object.keys(data).length) return;
+                if (document.referrer && document.referrer.indexOf(location.origin) !== 0) {
+                    data.referrer = document.referrer.slice(0, 500);
+                }
+                data.landing_page = location.pathname.slice(0, 500);
+                document.cookie = "sfj_attr=" + encodeURIComponent(JSON.stringify(data)) +
+                    "; max-age=" + 90 * 24 * 3600 + "; path=/; SameSite=Lax" +
+                    (location.protocol === "https:" ? "; Secure" : "");
+            } catch (e) { /* без атрибуции — не критично */ }
+        })();
     </script>
 
     <script>

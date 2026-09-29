@@ -223,8 +223,15 @@
     // ---------- Результат: обычный или бесплатное превью ----------
     let currentOrder = null;
 
+    const reportedPreviews = new Set();
+
     function showResult(order, result) {
         currentOrder = order;
+        // Цель Метрики: готово бесплатное превью (один раз на заказ за визит страницы)
+        if (order.is_free_preview && !reportedPreviews.has(order.id)) {
+            reportedPreviews.add(order.id);
+            window.ymReach && window.ymReach("preview_generated");
+        }
         generatedImage.src = result.file_url;
         imageBlock.classList.remove("d-none");
         unlockMessage.classList.add("d-none");

@@ -146,6 +146,24 @@
         });
     }
 
+    // Цель purchase — только после оплаты, подтверждённой вебхуком (сюда
+    // попадаем при status=paid), с суммой. Сервер разрешает отправку ровно
+    // один раз на платёж и не для тестовых — перезагрузка не задублирует.
+    async function reportPurchase(paymentId) {
+        try {
+            const resp = await window.PhotoStudioAuth.authFetch(`${API_BASE}/payments/${paymentId}/purchase-goal/`, { method: "POST" });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data.report && window.ymReach) {
+                window.ymReach("purchase", {
+                    order_price: Number(data.order_price),
+                    currency: data.currency || "RUB",
+                    package: data.package,
+                });
+            }
+        } catch (e) { /* аналитика не должна ломать чек */ }
+    }
+
     async function pollPayment(id) {
         const startedAt = Date.now();
 
@@ -166,6 +184,7 @@
             if (payment.status === "paid") {
                 showTicket(payment);
                 showUnlockedPhoto(payment);
+                reportPurchase(payment.id);
                 if (window.PhotoStudioAuth) window.PhotoStudioAuth.refreshBalance();
                 return;
             }

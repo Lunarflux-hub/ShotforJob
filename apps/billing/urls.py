@@ -10,6 +10,7 @@ urlpatterns = [
     path("promo/check/", views.PromoCodeCheckView.as_view(), name="promo_check"),
     path("payments/", views.PaymentListView.as_view(), name="payment_list"),
     path("payments/<int:pk>/", views.PaymentDetailView.as_view(), name="payment_detail"),
+    path("payments/<int:pk>/purchase-goal/", views.PurchaseGoalClaimView.as_view(), name="purchase_goal"),
     path("balance/", views.BalanceView.as_view(), name="balance"),
     path("payanyway/result/", views.payanyway_result, name="payanyway_result"),
     path("payanyway/success/", views.payanyway_success, name="payanyway_success"),

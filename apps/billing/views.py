@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.accounts import attribution
 from apps.photos.models import GeneratedResult
 from apps.photos.services import free_preview
 
@@ -204,10 +205,11 @@ class CreateTopupView(APIView):
             package=package,
             amount=amount,
             generations_granted=package.generations,
-            is_test=settings.PAYANYWAY_TEST_MODE,
+            is_test=services.is_test_payment(request.user, amount),
             promo_code=promo_code,
             discount_amount=discount_amount,
             unlock_result=unlock_result,
+            **attribution.fields_for_payment(request.user),
         )
 
         description_bits = [f"Пакет «{package.title}»"]
@@ -240,6 +242,38 @@ class PaymentDetailView(APIView):
         except Payment.DoesNotExist:
             return Response({"error": "not_found"}, status=status.HTTP_404_NOT_FOUND)
         return Response(PaymentSerializer(payment).data)
+
+
+class PurchaseGoalClaimView(APIView):
+    """
+    POST /api/billing/payments/<id>/purchase-goal/ — страница чека спрашивает,
+    отправлять ли цель purchase в Метрику. Ответ report=true приходит ровно
+    один раз на платёж (атомарный UPDATE по purchase_reported_at IS NULL) и
+    только для реального (не тестового) платежа, подтверждённого вебхуком —
+    перезагрузка страницы цель не задублирует.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        claimed = Payment.objects.filter(
+            id=pk,
+            user=request.user,
+            status=Payment.Status.PAID,
+            is_test=False,
+            purchase_reported_at__isnull=True,
+        ).update(purchase_reported_at=timezone.now())
+        if not claimed:
+            return Response({"report": False})
+        payment = Payment.objects.select_related("package").get(id=pk)
+        return Response(
+            {
+                "report": True,
+                "order_price": str(payment.amount),
+                "currency": payment.currency,
+                "package": payment.package.slug if payment.package else "",
+            }
+        )
 
 
 class PaymentListView(generics.ListAPIView):
