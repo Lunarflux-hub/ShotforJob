@@ -18,7 +18,7 @@ from .serializers import (
     PhotoStyleSerializer,
 )
 from .services import free_preview
-from .services.reviews import landing_reviews, save_review
+from .services.reviews import landing_reviews, photos_generated_count, save_review
 from .tasks import generate_photo_task
 from .utils import ANON_ID_COOKIE, ANON_ID_MAX_AGE, get_or_create_anon_id
 
@@ -223,4 +223,5 @@ class LandingView(TemplateView):
         context["reviews"] = landing_reviews()
         # ~8с на карточку — скорость ленты не зависит от числа отзывов
         context["reviews_duration"] = len(context["reviews"]) * 8
+        context["photos_generated"] = photos_generated_count()
         return context

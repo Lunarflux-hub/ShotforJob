@@ -5,25 +5,15 @@
 """
 from __future__ import annotations
 
-from ..models import Order, OrderReview
+from ..models import GeneratedResult, Order, OrderReview
 
-# Заглушки для карусели на главной, пока опубликованных отзывов мало. Почты
-# выдуманные и уже замаскированные — реальные адреса клиентов под
-# ненаписанными ими отзывами показывать нельзя.
-PLACEHOLDER_REVIEWS = [
-    {"text": "Сделала фото на резюме за пять минут, выглядит как из студии. Уже отправила в три компании!", "email": "an****@gmail.com", "rating": 5},
-    {"text": "Нужно было срочно фото на пропуск, а в фотосалон не успевал. Результат отличный, спасибо", "email": "dm********@yandex.ru", "rating": 5},
-    {"text": "Деловой стиль получился очень естественным — коллеги не поверили, что это нейросеть.", "email": "ek*****@mail.ru", "rating": 4},
-    {"text": "Удобно, что можно выбрать одежду и фон. С первого раза чуть не то, со второго идеально", "email": "se******@gmail.com", "rating": 4},
-    {"text": "Обновила аватарку в LinkedIn, стало намного солиднее. Рекомендую!", "email": "ol****@yandex.ru", "rating": 5},
-    {"text": "Неплохо, но волосы вышли слишком гладкими и фон пришлось перегенерировать. За свои деньги норм", "email": "ma*******@rambler.ru", "rating": 3},
-    {"text": "Быстро и недорого. Фото на документы приняли без вопросов.", "email": "iv*****@mail.ru", "rating": 5},
-    {"text": "Хороший результат, только пиджак немного не по размеру сел. В целом доволен", "email": "al********@outlook.com", "rating": 4},
-    {"text": "Фото для портфолио вышло живым, без пластикового эффекта — приятно удивлена.", "email": "vi****@bk.ru", "rating": 4},
-    {"text": "Сделал себе и жене фото на визу, всё приняли с первого раза", "email": "ro*******@gmail.com", "rating": 5},
-]
+# Карусель отзывов на главной показывается только когда есть хотя бы
+# столько реальных одобренных отзывов — выдуманные отзывы не показываем.
+LANDING_MIN_REVIEWS = 3
 
-LANDING_MIN_REVIEWS = len(PLACEHOLDER_REVIEWS)
+# Счётчик «N фото сгенерировано» на главной — только от этого порога:
+# маленькое число работает против доверия, а не на него.
+PHOTOS_COUNTER_MIN = 100
 
 
 def mask_email(email: str) -> str:
@@ -37,9 +27,9 @@ def mask_email(email: str) -> str:
 
 
 def landing_reviews(limit: int = 12) -> list[dict]:
-    """Отзывы для карусели на главной: опубликованные в админке (is_public),
-    с замаскированной почтой автора; если их меньше LANDING_MIN_REVIEWS —
-    добиваем заглушками."""
+    """Отзывы для карусели на главной: только одобренные в админке (is_public)
+    реальные отзывы с комментарием, почта автора замаскирована. Меньше
+    LANDING_MIN_REVIEWS — пустой список, блок на главной скрывается."""
     reviews = [
         {
             "text": review.comment,
@@ -50,9 +40,17 @@ def landing_reviews(limit: int = 12) -> list[dict]:
         .exclude(comment="")
         .select_related("order__user")[:limit]
     ]
-    if len(reviews) < LANDING_MIN_REVIEWS:
-        reviews += PLACEHOLDER_REVIEWS[: LANDING_MIN_REVIEWS - len(reviews)]
-    return reviews
+    return reviews if len(reviews) >= LANDING_MIN_REVIEWS else []
+
+
+def photos_generated_count() -> int | None:
+    """Сколько фото сгенерировано (без заказов сотрудников — это тесты).
+    None, если меньше PHOTOS_COUNTER_MIN — тогда счётчик на главной скрыт.
+    Округляем вниз до десятков: «130+ фото»."""
+    count = GeneratedResult.objects.exclude(order__user__is_staff=True).count()
+    if count < PHOTOS_COUNTER_MIN:
+        return None
+    return count // 10 * 10
 
 
 def save_review(order: Order, *, rating: int | None = None, comment: str | None = None, source: str) -> OrderReview:

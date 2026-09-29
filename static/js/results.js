@@ -22,8 +22,10 @@
                 unlockMessageEl.classList.remove("d-none");
             }
             window.SFJUnlock.startDownload(data.result.download_url);
+            const orderId = btn.closest(".order-item").dataset.orderId;
             listEl.innerHTML = "";
-            loadHistory();
+            await loadHistory();
+            showInlineReview(listEl.querySelector(`.order-item[data-order-id="${orderId}"]`));
         } catch (err) {
             errorEl.textContent = err.message;
             errorEl.classList.remove("d-none");
@@ -75,6 +77,8 @@
             actionsHtml = `<span class="order-status-text">${STATUS_LABELS[order.status] || order.status}</span>`;
         }
 
+        li.dataset.orderId = order.id;
+        li.dataset.hasReview = order.review ? "1" : "";
         li.innerHTML = `
             ${thumbHtml}
             <div class="order-info">
@@ -85,6 +89,71 @@
         `;
         return li;
     }
+
+    // ---------- Оценка после скачивания HD ----------
+    // Под заказом без отзыва после скачивания появляется строка «Оцените фото»:
+    // звёзды + необязательный комментарий → POST /api/orders/<id>/review/
+    // (дальше — модерация в админке, на главную попадают только одобренные).
+    function showInlineReview(li) {
+        if (!li || li.dataset.hasReview || li.nextElementSibling?.classList.contains("inline-review")) return;
+        const box = document.createElement("li");
+        box.className = "inline-review";
+        const title = document.createElement("span");
+        title.className = "inline-review-title";
+        title.textContent = t("Оцените фото:", "Rate the photo:");
+        const stars = document.createElement("span");
+        stars.className = "inline-review-stars";
+        stars.setAttribute("role", "radiogroup");
+        let rating = 0;
+        const comment = document.createElement("input");
+        comment.className = "inline-review-comment";
+        comment.maxLength = 2000;
+        comment.placeholder = t("Пара слов (необязательно)", "A few words (optional)");
+        const send = document.createElement("button");
+        send.type = "button";
+        send.className = "btn-pill primary";
+        send.textContent = t("Отправить", "Send");
+        send.disabled = true;
+        for (let n = 1; n <= 5; n++) {
+            const star = document.createElement("button");
+            star.type = "button";
+            star.textContent = "★";
+            star.setAttribute("aria-label", `${n} / 5`);
+            star.addEventListener("click", () => {
+                rating = n;
+                stars.querySelectorAll("button").forEach((b, i) => b.classList.toggle("active", i < n));
+                send.disabled = false;
+            });
+            stars.appendChild(star);
+        }
+        send.addEventListener("click", async () => {
+            send.disabled = true;
+            const doFetch = window.PhotoStudioAuth ? window.PhotoStudioAuth.authFetch : fetch;
+            try {
+                const resp = await doFetch(`${API_BASE}/orders/${li.dataset.orderId}/review/`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rating, comment: comment.value.trim() }),
+                });
+                if (!resp.ok) throw new Error();
+                li.dataset.hasReview = "1";
+                box.replaceChildren(Object.assign(document.createElement("span"), {
+                    className: "inline-review-title",
+                    textContent: t("Спасибо за отзыв! 💙", "Thanks for your review! 💙"),
+                }));
+            } catch (e) {
+                send.disabled = false;
+                send.textContent = t("Не отправилось — ещё раз", "Failed — try again");
+            }
+        });
+        box.append(title, stars, comment, send);
+        li.after(box);
+    }
+
+    listEl.addEventListener("click", (e) => {
+        const link = e.target.closest("a[download]");
+        if (link) showInlineReview(link.closest(".order-item"));
+    });
 
     async function loadHistory() {
         try {

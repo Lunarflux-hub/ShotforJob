@@ -235,6 +235,7 @@
         generatedImage.src = result.file_url;
         imageBlock.classList.remove("d-none");
         unlockMessage.classList.add("d-none");
+        reviewBlock && reviewBlock.classList.add("d-none");  // новый результат — оценку спросим после скачивания
         applyResultState(result);
     }
 
@@ -254,14 +255,25 @@
             downloadBtn.href = result.download_url || result.file_url;
             downloadBtn.textContent = t("Скачать", "Download");
             previewNote.classList.add("d-none");
-            setupReview(currentOrder);
+            // Оценку просим после скачивания HD, а не сразу (см. askReviewAfterDownload)
             // «Ещё 5 вариантов в другом стиле» — только уже платившим (upsell.js)
             window.SFJUpsell && window.SFJUpsell.show(document.getElementById("upsellCard"));
         }
     }
 
+    // Просим оценку после того, как человек скачал фото в HD (обычное или
+    // разблокированное превью). Уже открытую форму повторно не сбрасываем.
+    function askReviewAfterDownload() {
+        if (currentOrder && reviewBlock && reviewBlock.classList.contains("d-none")) {
+            setupReview(currentOrder);
+        }
+    }
+
     downloadBtn.addEventListener("click", async (e) => {
-        if (downloadBtn.dataset.locked !== "1") return;
+        if (downloadBtn.dataset.locked !== "1") {
+            askReviewAfterDownload();  // обычное скачивание идёт своим ходом по ссылке
+            return;
+        }
         e.preventDefault();
         downloadBtn.classList.add("disabled");
         try {
@@ -275,6 +287,7 @@
                 loadBalance();
             }
             window.SFJUnlock.startDownload(data.result.download_url);
+            askReviewAfterDownload();
         } catch (err) {
             errorText.textContent = err.message;
             errorBlock.classList.remove("d-none");

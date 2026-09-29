@@ -85,9 +85,7 @@
     /* ===== НИЖНИЙ БЛОК (подзаголовок + кнопки) ===== */
     .bottom-block {
         position: absolute;
-        /* 200px до появления .hero-rating под кнопками; минус его высота с
-           отступом (~56px), чтобы подзаголовок и кнопки остались на месте */
-        bottom: 144px;
+        bottom: 200px;
         left: 50%;
         transform: translateX(-50%);
         width: 100%;
@@ -116,7 +114,7 @@
     }
     .hero-subtitle br { display: block; }
 
-    /* ===== Мини-блок с рейтингом под кнопками ===== */
+    /* ===== Плашка-счётчик под кнопками (число фото из БД) ===== */
     .hero-rating {
         display: inline-flex;
         align-items: center;
@@ -131,24 +129,13 @@
         pointer-events: auto;
         white-space: nowrap;
     }
-    .hero-rating-stars {
-        /* 4.8 из 5: пятая звезда закрашена на 80% */
-        background: linear-gradient(90deg, #FFB400 96%, #d9d9d9 96%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        font-size: 17px;
-        letter-spacing: 1px;
-    }
-    .hero-rating-score { font-weight: 700; }
-    .hero-rating-max { font-weight: 500; opacity: 0.5; }
-    .hero-rating-sep { width: 1px; height: 16px; background: currentColor; opacity: 0.2; }
-    .hero-rating-clients { font-weight: 500; opacity: 0.75; }
+    .hero-rating-count { font-weight: 500; }
+    /* Под кнопками есть плашка-счётчик — поднимаем блок на её высоту с
+       отступом (~56px), чтобы подзаголовок и кнопки остались на месте */
+    .bottom-block.has-badge { bottom: 144px; }
     [data-theme="dark"] .hero-rating { background: rgba(32, 32, 32, 0.85); color: #f2f2f2; box-shadow: none; }
-    [data-theme="dark"] .hero-rating-stars { background: linear-gradient(90deg, #FFB400 96%, #3a3a3a 96%); -webkit-background-clip: text; background-clip: text; }
     @media (max-width: 480px) {
         .hero-rating { font-size: 12px; gap: 6px; padding: 6px 12px; margin-top: 16px; }
-        .hero-rating-stars { font-size: 13px; letter-spacing: 0; }
     }
     .buttons {
         display: flex;
@@ -1407,7 +1394,7 @@
             </div>
         </div>
 
-        <div class="bottom-block">
+        <div class="bottom-block{% if photos_generated %} has-badge{% endif %}">
             <p class="hero-subtitle" data-en="One click and neural network turns your photo into a business portrait,<br>as if you just stepped out of a professional photo studio">
                 Один клик и нейросеть превратит ваше фото в деловой снимок,<br>
                 будто вы только что вышли из профессиональной фотостудии
@@ -1417,12 +1404,12 @@
                    {% if min_package_price %}data-paid-ru="Попробовать за {{ min_package_price }} ₽" data-paid-en="Try it for {{ min_package_price }} ₽"{% endif %}>Попробовать бесплатно</a>
                 <a href="/results/" class="btn btn-secondary auth-required" data-en="Results">Результаты</a>
             </div>
-            <div class="hero-rating" aria-label="Рейтинг 4.8 из 5, более 20 клиентов">
-                <span class="hero-rating-stars" aria-hidden="true">★★★★★</span>
-                <span class="hero-rating-score">4.8<span class="hero-rating-max">/5</span></span>
-                <span class="hero-rating-sep" aria-hidden="true"></span>
-                <span class="hero-rating-clients" data-en="20+ happy clients">20+ довольных клиентов</span>
+            {% if photos_generated %}
+            {# Реальное число из БД (apps/photos/services/reviews.photos_generated_count), показывается от 100 #}
+            <div class="hero-rating">
+                <span class="hero-rating-count" data-en="📸 {{ photos_generated }}+ photos generated">📸 {{ photos_generated }}+ фото уже сгенерировано</span>
             </div>
+            {% endif %}
         </div>
     </section>
 
