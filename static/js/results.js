@@ -6,6 +6,31 @@
     const errorEl = document.getElementById("resultsError");
     const loadingEl = document.getElementById("resultsLoading");
 
+    const t = (ru, en) => (window.SFJ_t ? window.SFJ_t(ru, en) : ru);
+    const unlockMessageEl = document.getElementById("resultsUnlockMessage");
+
+    // «Скачать в HD» у бесплатного превью — делегирование, т.к. список рендерится динамически
+    listEl.addEventListener("click", async (e) => {
+        const btn = e.target.closest(".js-unlock");
+        if (!btn) return;
+        btn.disabled = true;
+        try {
+            const data = await window.SFJUnlock.unlock(btn.dataset.resultId);
+            if (!data) return; // ушли на оплату
+            if (data.charged && unlockMessageEl) {
+                unlockMessageEl.textContent = window.SFJUnlock.balanceText(data.balance);
+                unlockMessageEl.classList.remove("d-none");
+            }
+            window.SFJUnlock.startDownload(data.result.download_url);
+            listEl.innerHTML = "";
+            loadHistory();
+        } catch (err) {
+            errorEl.textContent = err.message;
+            errorEl.classList.remove("d-none");
+            btn.disabled = false;
+        }
+    });
+
     const STATUS_LABELS = {
         pending: "в очереди",
         processing: "генерируется",
@@ -34,11 +59,17 @@
             : `<div class="order-thumb order-thumb-placeholder">${STATUS_LABELS[order.status] || order.status}</div>`;
 
         let actionsHtml;
-        if (latestResult) {
+        if (latestResult && latestResult.is_locked) {
+            // Бесплатное превью: оригинал открывается через «Скачать в HD» (unlock.js)
+            actionsHtml = `
+                <span class="preview-badge">${t("Превью со знаком", "Watermarked preview")}</span>
+                <button type="button" class="btn-pill primary js-unlock" data-result-id="${latestResult.id}">${t("Скачать в HD", "Download in HD")}</button>
+            `;
+        } else if (latestResult) {
             const reportUrl = `/support/?order_id=${order.id}&result_id=${latestResult.id}`;
             actionsHtml = `
-                <a href="${latestResult.file_url}" download class="btn-pill primary">Скачать</a>
-                <a href="${reportUrl}" class="btn-link-muted">Сообщить о проблеме</a>
+                <a href="${latestResult.download_url || latestResult.file_url}" download class="btn-pill primary">${t("Скачать", "Download")}</a>
+                <a href="${reportUrl}" class="btn-link-muted">${t("Сообщить о проблеме", "Report a problem")}</a>
             `;
         } else {
             actionsHtml = `<span class="order-status-text">${STATUS_LABELS[order.status] || order.status}</span>`;

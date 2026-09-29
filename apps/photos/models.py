@@ -80,6 +80,12 @@ class Order(models.Model):
         upload_to=background_image_path, blank=True, null=True
     )
 
+    # Бесплатное превью (см. services/free_preview.py): генерация без
+    # списания с баланса, результат отдаётся с водяным знаком до оплаты.
+    is_free_preview = models.BooleanField(default=False)
+    # IP, с которого создан заказ — для лимита бесплатных превью (X-Real-IP от nginx)
+    client_ip = models.GenericIPAddressField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -104,11 +110,22 @@ class UploadedPhoto(models.Model):
 
 
 class GeneratedResult(models.Model):
-    """Результат генерации заказа."""
+    """Результат генерации заказа.
+
+    Бесплатное превью: оригинал (s3_key) лежит в приватном бакете и наружу не
+    отдаётся, пока результат не разблокирован; все каналы выдачи (API, письмо,
+    Telegram) берут ключ через delivery_key — там лежит копия ~512px с
+    водяным знаком (preview_s3_key)."""
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="results")
     s3_key = models.CharField(max_length=500)
+    # Presigned-ссылка на то, что можно показывать (для превью — на копию со
+    # знаком). Актуальные ссылки всё равно пересчитываются при каждой выдаче.
     file_url = models.URLField(max_length=1000)
+    is_free_preview = models.BooleanField(default=False)
+    unlocked = models.BooleanField(default=False, help_text="Превью оплачено — доступен оригинал в HD")
+    unlocked_at = models.DateTimeField(null=True, blank=True)
+    preview_s3_key = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -116,6 +133,16 @@ class GeneratedResult(models.Model):
 
     def __str__(self):
         return f"Result для {self.order_id}"
+
+    @property
+    def is_locked(self) -> bool:
+        """Оригинал недоступен: бесплатное превью, ещё не оплаченное."""
+        return self.is_free_preview and not self.unlocked
+
+    @property
+    def delivery_key(self) -> str:
+        """Что можно отдавать пользователю — оригинал или копию со знаком."""
+        return self.preview_s3_key if self.is_locked else self.s3_key
 
 
 class OrderReview(models.Model):

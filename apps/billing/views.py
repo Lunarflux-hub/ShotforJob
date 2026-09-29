@@ -14,6 +14,9 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.photos.models import GeneratedResult
+from apps.photos.services import free_preview
+
 from .models import GenerationPackage, Payment, GenerationLedgerEntry, PromoCode
 from .payanyway import build_payment_request, verify_pay_url_signature
 from .serializers import PaymentSerializer
@@ -191,6 +194,14 @@ class CreateTopupView(APIView):
                 )
             amount, discount_amount = promo_code.compute_discount(amount)
 
+        # «Скачать в HD» без генераций: после оплаты вебхук сам разблокирует это фото
+        unlock_result = None
+        raw_unlock = request.data.get("unlock_result_id")
+        if raw_unlock:
+            unlock_result = GeneratedResult.objects.filter(
+                id=raw_unlock, order__user=request.user, is_free_preview=True, unlocked=False
+            ).first()
+
         payment = Payment.objects.create(
             user=request.user,
             package=package,
@@ -199,6 +210,7 @@ class CreateTopupView(APIView):
             is_test=settings.PAYANYWAY_TEST_MODE,
             promo_code=promo_code,
             discount_amount=discount_amount,
+            unlock_result=unlock_result,
         )
 
         description_bits = [f"Пакет «{package.title}»"]
@@ -318,6 +330,14 @@ def payanyway_result(request):
             payment=payment,
         )
 
+        # Оплата из «Скачать в HD»: списываем 1 из только что начисленных и
+        # открываем оригинал — пользователь сразу видит фото без знака
+        if payment.unlock_result_id:
+            try:
+                free_preview.unlock(payment.unlock_result, payment.user)
+            except services.InsufficientBalanceError:
+                pass  # не должно случиться сразу после начисления; фото откроется вручную
+
         # on_commit — задачи ставятся в очередь, только если транзакция
         # успешно зафиксирована (иначе Celery-воркер может прочитать ещё
         # не сохранённый платёж).
@@ -405,4 +425,8 @@ class PaymentPageView(TemplateView):
         # Допродажа (paid_only) на сервере не рендерится — сервер не знает, кто
         # смотрит (авторизация по JWT в браузере); её дорисовывает JS для платившим
         context["requested_package"] = wanted
+        # Пришли из «Скачать в HD»: после оплаты это фото разблокируется само.
+        # Принадлежность фото пользователю проверяется при создании платежа.
+        unlock = self.request.GET.get("unlock", "")
+        context["unlock_result_id"] = unlock if unlock.isdigit() else ""
         return context

@@ -19,6 +19,40 @@
     const errorText = document.getElementById("errorText");
     const fbCount = document.getElementById("fbCount");
     const formBalanceRow = document.getElementById("formBalanceRow");
+    const submitBtnText = document.getElementById("submitBtnText");
+    const freePreviewHint = document.getElementById("freePreviewHint");
+    const previewNote = document.getElementById("previewNote");
+    const unlockMessage = document.getElementById("unlockMessage");
+    const t = (ru, en) => (window.SFJ_t ? window.SFJ_t(ru, en) : ru);
+    let freePreviewEligible = false;
+
+    // Текст кнопки меняем во внутреннем span — textContent всей кнопки
+    // стирал бы её анимацию (частицы/искры)
+    function setSubmitText(text) {
+        if (submitBtnText) submitBtnText.textContent = text;
+        else submitBtn.textContent = text;
+    }
+
+    function idleSubmitText() {
+        return freePreviewEligible
+            ? t("Сгенерировать бесплатно", "Generate for free")
+            : t("Сгенерировать", "Generate");
+    }
+
+    // Бесплатное превью (apps/photos/services/free_preview.py): новому
+    // аккаунту первая генерация без списания, результат — со знаком
+    async function loadFreePreviewStatus() {
+        if (!window.PhotoStudioAuth || !window.PhotoStudioAuth.isLoggedIn()) return;
+        try {
+            const resp = await window.PhotoStudioAuth.authFetch(`${API_BASE}/orders/free-preview/`);
+            if (!resp.ok) return;
+            freePreviewEligible = !!(await resp.json()).eligible;
+        } catch (e) {
+            freePreviewEligible = false;
+        }
+        if (freePreviewHint) freePreviewHint.classList.toggle("d-none", !freePreviewEligible);
+        if (!submitBtn.disabled) setSubmitText(idleSubmitText());
+    }
 
     const reviewBlock = document.getElementById("reviewBlock");
     const reviewForm = document.getElementById("reviewForm");
@@ -171,10 +205,7 @@
         if (order.status === "done") {
             const lastResult = order.results && order.results[0];
             if (lastResult) {
-                generatedImage.src = lastResult.file_url;
-                downloadBtn.href = lastResult.file_url;
-                imageBlock.classList.remove("d-none");
-                setupReview(order);
+                showResult(order, lastResult);
             } else {
                 setStatus("failed");
                 errorText.textContent = "Результат не найден в ответе сервера";
@@ -188,6 +219,60 @@
             errorBlock.classList.remove("d-none");
         }
     }
+
+    // ---------- Результат: обычный или бесплатное превью ----------
+    let currentOrder = null;
+
+    function showResult(order, result) {
+        currentOrder = order;
+        generatedImage.src = result.file_url;
+        imageBlock.classList.remove("d-none");
+        unlockMessage.classList.add("d-none");
+        applyResultState(result);
+    }
+
+    function applyResultState(result) {
+        downloadBtn.dataset.resultId = result.id;
+        if (result.is_locked) {
+            // Оригинал ещё не оплачен — кнопка ведёт в «Скачать в HD»
+            downloadBtn.dataset.locked = "1";
+            downloadBtn.removeAttribute("download");
+            downloadBtn.href = "#";
+            downloadBtn.textContent = t("Скачать в HD", "Download in HD");
+            previewNote.classList.remove("d-none");
+            reviewBlock && reviewBlock.classList.add("d-none");
+        } else {
+            downloadBtn.dataset.locked = "";
+            downloadBtn.setAttribute("download", "");
+            downloadBtn.href = result.download_url || result.file_url;
+            downloadBtn.textContent = t("Скачать", "Download");
+            previewNote.classList.add("d-none");
+            setupReview(currentOrder);
+        }
+    }
+
+    downloadBtn.addEventListener("click", async (e) => {
+        if (downloadBtn.dataset.locked !== "1") return;
+        e.preventDefault();
+        downloadBtn.classList.add("disabled");
+        try {
+            const data = await window.SFJUnlock.unlock(downloadBtn.dataset.resultId);
+            if (!data) return; // ушли на оплату
+            generatedImage.src = data.result.file_url;
+            applyResultState(data.result);
+            if (data.charged) {
+                unlockMessage.textContent = window.SFJUnlock.balanceText(data.balance);
+                unlockMessage.classList.remove("d-none");
+                loadBalance();
+            }
+            window.SFJUnlock.startDownload(data.result.download_url);
+        } catch (err) {
+            errorText.textContent = err.message;
+            errorBlock.classList.remove("d-none");
+        } finally {
+            downloadBtn.classList.remove("disabled");
+        }
+    });
 
     // ---------- Отзыв о генерации ----------
     let reviewOrderId = null;
@@ -309,7 +394,7 @@
         }
 
         submitBtn.disabled = true;
-        submitBtn.textContent = "Отправка…";
+        setSubmitText(t("Отправка…", "Sending…"));
 
         try {
             const doFetch = window.PhotoStudioAuth ? window.PhotoStudioAuth.authFetch : fetch;
@@ -321,10 +406,11 @@
             if (!resp.ok) {
                 if (resp.status === 402) {
                     const err = await resp.json().catch(() => ({}));
-                    showFormError(
+                    showFormError(t(
                         `Недостаточно генераций на балансе (осталось ${err.balance ?? 0}). ` +
-                        `Пополните баланс, чтобы продолжить.`
-                    );
+                        `Пополните баланс, чтобы продолжить.`,
+                        `Not enough generations on your balance (${err.balance ?? 0} left). Top up to continue.`
+                    ));
                     if (typeof err.balance === "number") {
                         currentBalance = err.balance;
                         if (fbCount) {
@@ -344,11 +430,15 @@
             renderOrder(order);
             startPolling(order.id);
             loadBalance();
+            if (order.is_free_preview) {
+                freePreviewEligible = false;
+                freePreviewHint && freePreviewHint.classList.add("d-none");
+            }
         } catch (e) {
             showFormError(e.message);
             submitBtn.disabled = false;
         } finally {
-            submitBtn.textContent = "Сгенерировать";
+            setSubmitText(idleSubmitText());
         }
     }
 
@@ -359,4 +449,14 @@
 
     loadStyles();
     loadBalance();
+    loadFreePreviewStatus();
+
+    document.addEventListener("sfj:lang", () => {
+        if (!submitBtn.disabled) setSubmitText(idleSubmitText());
+        if (downloadBtn.dataset.resultId) {
+            downloadBtn.textContent = downloadBtn.dataset.locked === "1"
+                ? t("Скачать в HD", "Download in HD")
+                : t("Скачать", "Download");
+        }
+    });
 })();

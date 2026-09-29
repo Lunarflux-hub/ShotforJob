@@ -135,6 +135,23 @@
         0% { transform: translateY(0) rotate(0deg); opacity: 1; }
         100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
     }
+
+    .receipt-unlock {
+        max-width: 420px;
+        margin: 20px auto 0;
+        padding: 18px 20px;
+        border-radius: 16px;
+        background: #e6f7ee;
+        text-align: center;
+    }
+    .receipt-unlock-text { font-size: 16px; font-weight: 600; color: #1c6b44; margin-bottom: 14px; }
+    .receipt-unlock-btn {
+        font: inherit; font-weight: 600; font-size: 15px; cursor: pointer;
+        padding: 12px 26px; border-radius: 40px; border: none; background: #0066FF; color: #fff;
+    }
+    .receipt-unlock-btn:disabled { opacity: 0.6; cursor: default; }
+    [data-theme="dark"] .receipt-unlock { background: rgba(34, 197, 94, 0.14); }
+    [data-theme="dark"] .receipt-unlock-text { color: #86efac; }
 </style>
 {% endblock %}
 
@@ -209,6 +226,12 @@
         </div>
     </div>
 
+    <!-- Оплата из «Скачать в HD»: фото уже разблокировано вебхуком (static/js/billing_success.js) -->
+    <div class="receipt-unlock" id="receiptUnlock" style="display:none;" aria-live="polite">
+        <p class="receipt-unlock-text" id="receiptUnlockText"></p>
+        <button type="button" class="receipt-unlock-btn" id="receiptUnlockBtn" data-en="Download photo in HD">Скачать фото в HD</button>
+    </div>
+
     <div class="receipt-actions" id="receiptActions" style="display:none;">
         <a class="secondary" href="/billing/history/">Все платежи</a>
         <a class="primary" href="/workstation/">Продолжить</a>
@@ -217,5 +240,6 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/unlock.js' %}"></script>
 <script src="{% static 'js/billing_success.js' %}"></script>
 {% endblock %}

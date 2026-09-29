@@ -133,7 +133,8 @@ def get_order_photo_url(user, order_id) -> str | None:
     result = order.results.first()
     if result is None:
         return None
-    return storage.generate_presigned_url(result.s3_key)
+    # Неоплаченное бесплатное превью — только копия с водяным знаком
+    return storage.generate_presigned_url(result.delivery_key)
 
 
 def save_bot_review(user, order_id, *, rating: int | None = None, comment: str | None = None) -> int | None:

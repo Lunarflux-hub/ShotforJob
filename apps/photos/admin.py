@@ -17,12 +17,14 @@ class UploadedPhotoInline(admin.TabularInline):
 class GeneratedResultInline(admin.TabularInline):
     model = GeneratedResult
     extra = 0
+    fields = ["s3_key", "is_free_preview", "unlocked", "unlocked_at", "preview_s3_key", "created_at"]
+    readonly_fields = ["created_at"]
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ["id", "style", "status", "user", "anon_id", "created_at"]
-    list_filter = ["status", "style"]
+    list_display = ["id", "style", "status", "is_free_preview", "user", "client_ip", "created_at"]
+    list_filter = ["status", "is_free_preview", "style"]
     inlines = [UploadedPhotoInline, GeneratedResultInline]
 
 

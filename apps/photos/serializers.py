@@ -15,14 +15,26 @@ class GeneratedResultSerializer(serializers.ModelSerializer):
     # Пересчитываем presigned URL при каждом запросе, чтобы ссылка на
     # скачивание не протухала даже в старой истории заказов
     # (бакет в Yandex Object Storage приватный, см. services/storage.py).
+    #
+    # Неоплаченное бесплатное превью отдаётся только копией с водяным знаком
+    # (delivery_key); ссылку на оригинал API не выдаёт — её возвращает только
+    # «Скачать в HD» (views.ResultUnlockView) после списания генерации.
     file_url = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
+    is_locked = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = GeneratedResult
-        fields = ["id", "file_url", "created_at"]
+        fields = ["id", "file_url", "download_url", "is_free_preview", "unlocked", "is_locked", "created_at"]
 
     def get_file_url(self, obj):
-        return storage.generate_presigned_url(obj.s3_key)
+        return storage.generate_presigned_url(obj.delivery_key)
+
+    def get_download_url(self, obj):
+        # Скачивание (а не открытие во вкладке) — только для доступного оригинала
+        if obj.is_locked:
+            return None
+        return storage.generate_presigned_url(obj.s3_key, download_name=f"shotforjob-{obj.id}.png")
 
 
 class UploadedPhotoSerializer(serializers.ModelSerializer):
@@ -57,6 +69,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "clothing",
             "background_type",
             "background_color",
+            "is_free_preview",
             "uploaded_photos",
             "results",
             "review",

@@ -850,6 +850,19 @@
 
     #errorText { color: #c62828; margin-bottom: 16px; }
 
+    /* ---- Бесплатное превью ---- */
+    .free-preview-hint {
+        margin: 12px 0 0;
+        padding: 12px 16px;
+        border-radius: 14px;
+        background: #e6f7ee;
+        color: #1c6b44;
+        font-size: 14px;
+        line-height: 1.45;
+    }
+    .preview-note { font-size: 14px; opacity: 0.75; margin-bottom: 14px; }
+    .unlock-message { font-size: 15px; font-weight: 600; color: #1c8a53; margin-bottom: 14px; }
+
     /* ---- Отзыв о генерации ---- */
     .review-block {
         margin-top: 24px;
@@ -1080,6 +1093,11 @@
                 </div>
                 <a href="/payment/">Пополнить</a>
             </div>
+            <!-- Бесплатное превью (apps/photos/services/free_preview.py) — показывает static/js/main.js -->
+            <p id="freePreviewHint" class="free-preview-hint d-none"
+               data-en="🎁 Your first photo is free — with a watermark. The HD version without it is unlocked after payment.">
+                🎁 Первое фото — бесплатно, с водяным знаком. Версию в HD без знака откроете после оплаты.
+            </p>
 
             <button type="submit" class="btn-submit" id="submitBtn">
                 <span class="particle" style="--angle: 0deg"></span>
@@ -1120,6 +1138,11 @@
 
             <div id="imageBlock" class="d-none">
                 <img id="generatedImage" src="" alt="Результат генерации">
+                <p id="previewNote" class="preview-note d-none"
+                   data-en="This is a free preview with a watermark. Download it in HD without the watermark:">
+                    Это бесплатное превью с водяным знаком. Скачайте фото в HD без знака:
+                </p>
+                <p id="unlockMessage" class="unlock-message d-none" aria-live="polite"></p>
                 <div class="result-actions">
                     <a id="downloadBtn" href="" download class="btn-pill primary">Скачать</a>
                 </div>
@@ -2042,5 +2065,6 @@
     document.addEventListener("DOMContentLoaded", loadHistoryWheel);
 })();
 </script>
+<script src="{% static 'js/unlock.js' %}"></script>
 <script src="{% static 'js/main.js' %}"></script>
 {% endblock %}

@@ -1413,7 +1413,8 @@
                 будто вы только что вышли из профессиональной фотостудии
             </p>
             <div class="buttons">
-                <a href="/workstation/" class="btn btn-primary auth-required" id="heroTryBtn"{% if min_package_price %} data-en="Try it for {{ min_package_price }} ₽">Попробовать за {{ min_package_price }} ₽{% else %} data-en="Try it">Попробовать{% endif %}</a>
+                <a href="/workstation/" class="btn btn-primary auth-required" id="heroTryBtn" data-en="Try it for free"
+                   {% if min_package_price %}data-paid-ru="Попробовать за {{ min_package_price }} ₽" data-paid-en="Try it for {{ min_package_price }} ₽"{% endif %}>Попробовать бесплатно</a>
                 <a href="/results/" class="btn btn-secondary auth-required" data-en="Results">Результаты</a>
             </div>
             <div class="hero-rating" aria-label="Рейтинг 4.8 из 5, более 20 клиентов">
@@ -1719,5 +1720,22 @@
         }
     })();
 
+
+    // Кнопка в первом экране: новым — «Попробовать бесплатно» (бесплатное превью,
+    // apps/photos/services/free_preview.py); тем, кто его уже использовал, —
+    // честная цена самого дешёвого тарифа из БД
+    (function () {
+        var btn = document.getElementById('heroTryBtn');
+        if (!btn || !btn.dataset.paidRu || !window.PhotoStudioAuth || !window.PhotoStudioAuth.isLoggedIn()) return;
+        window.PhotoStudioAuth.authFetch('/api/orders/free-preview/')
+            .then(function (resp) { return resp.ok ? resp.json() : null; })
+            .then(function (data) {
+                if (!data || data.eligible) return;
+                btn.dataset.ru = btn.dataset.paidRu;
+                btn.setAttribute('data-en', btn.dataset.paidEn);
+                btn.innerHTML = window.SFJ_LANG === 'en' ? btn.dataset.paidEn : btn.dataset.paidRu;
+            })
+            .catch(function () {});
+    })();
 </script>
 {% endblock %}

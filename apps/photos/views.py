@@ -6,16 +6,18 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from apps.billing import catalog
+from apps.billing import catalog, services
 from apps.billing.services import InsufficientBalanceError, spend_generation
 
-from .models import Order, PhotoStyle, UploadedPhoto
+from .models import GeneratedResult, Order, PhotoStyle, UploadedPhoto
 from .serializers import (
+    GeneratedResultSerializer,
     OrderCreateSerializer,
     OrderReviewSerializer,
     OrderSerializer,
     PhotoStyleSerializer,
 )
+from .services import free_preview
 from .services.reviews import landing_reviews, save_review
 from .tasks import generate_photo_task
 from .utils import ANON_ID_COOKIE, ANON_ID_MAX_AGE, get_or_create_anon_id
@@ -64,9 +66,21 @@ class OrderCreateView(OrderOwnershipMixin, APIView):
     def post(self, request):
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        ip = free_preview.client_ip(request)
 
         try:
             with transaction.atomic():
+                # Лочим баланс первым делом: под этой блокировкой решаем
+                # «списать / бесплатное превью / 402», чтобы параллельные
+                # запросы не получили два бесплатных превью.
+                balance = services.lock_balance(request.user)
+                is_free = False
+                if balance.generations < 1:
+                    reason = free_preview.eligibility(request.user, ip)
+                    if reason is not None:
+                        raise InsufficientBalanceError(balance.generations, 1)
+                    is_free = True
+
                 order = Order.objects.create(
                     user=request.user,
                     style=serializer.validated_data["style"],
@@ -75,10 +89,11 @@ class OrderCreateView(OrderOwnershipMixin, APIView):
                     background_type=serializer.validated_data.get("background_type", ""),
                     background_color=serializer.validated_data.get("background_color", ""),
                     background_image=serializer.validated_data.get("background_image"),
+                    is_free_preview=is_free,
+                    client_ip=ip,
                 )
-                # Списываем генерацию тут же, в той же транзакции: если баланса
-                # не хватит, InsufficientBalanceError откатит и создание order.
-                spend_generation(request.user, order=order)
+                if not is_free:
+                    spend_generation(request.user, order=order)
 
                 for photo in serializer.validated_data["photos"]:
                     UploadedPhoto.objects.create(order=order, image=photo)
@@ -95,6 +110,55 @@ class OrderCreateView(OrderOwnershipMixin, APIView):
         generate_photo_task.delay(str(order.id))
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
+
+class FreePreviewStatusView(APIView):
+    """GET /api/orders/free-preview/ — положено ли бесплатное превью (для
+    подсказки на /workstation и кнопки «Попробовать бесплатно»)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [PollingAnonRateThrottle, PollingUserRateThrottle]
+
+    def get(self, request):
+        balance = services.get_balance(request.user)
+        reason = free_preview.eligibility(request.user, free_preview.client_ip(request))
+        return Response({"eligible": balance < 1 and reason is None, "balance": balance})
+
+
+class ResultUnlockView(APIView):
+    """
+    POST /api/results/{id}/unlock/ — «Скачать в HD» для бесплатного превью.
+    Есть генерации — списывает 1 и отдаёт ссылку на оригинал; нет — 402 со
+    ссылкой на оплату «Оптимального», после которой вебхук разблокирует фото
+    сам (Payment.unlock_result). Уже открытый результат — просто ссылка.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        result = GeneratedResult.objects.filter(id=id, order__user=request.user).first()
+        if result is None:
+            return Response({"detail": "Фото не найдено"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            charged = free_preview.unlock(result, request.user)
+        except InsufficientBalanceError:
+            return Response(
+                {
+                    "error": "insufficient_balance",
+                    "pay_url": f"/payment/?package=optimal&unlock={result.id}",
+                },
+                status=status.HTTP_402_PAYMENT_REQUIRED,
+            )
+
+        result.refresh_from_db()
+        return Response(
+            {
+                "charged": charged,
+                "balance": services.get_balance(request.user),
+                "result": GeneratedResultSerializer(result).data,
+            }
+        )
 
 
 class OrderDetailView(OrderOwnershipMixin, generics.RetrieveAPIView):

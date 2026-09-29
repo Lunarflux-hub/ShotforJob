@@ -80,6 +80,7 @@ def notify_order_result(order) -> None:
         return
 
     from apps.photos.models import Order  # локальный импорт — избегаем цикла apps
+    from apps.photos.services import storage
 
     if order.status == Order.Status.DONE:
         result = order.results.first()
@@ -94,7 +95,8 @@ def notify_order_result(order) -> None:
         _call(
             "sendPhoto",
             chat_id=profile.telegram_id,
-            photo=result.file_url,
+            # delivery_key — для неоплаченного бесплатного превью только копия со знаком
+            photo=storage.generate_presigned_url(result.delivery_key),
             caption=f"{ORDER_RESULT_CAPTION}\n\nОцените результат — это поможет нам стать лучше:",
             reply_markup=_order_result_markup(order.id),
         )

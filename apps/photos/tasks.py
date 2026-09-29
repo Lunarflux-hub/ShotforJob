@@ -13,6 +13,7 @@ from apps.telegram_bot.notifications import notify_order_result
 
 from .models import GeneratedResult, Order
 from .services import storage
+from .services.free_preview import make_watermarked_preview
 from .services.polza_client import PolzaClientError, generate_image_from_reference
 from .services.prompt_builder import build_prompt
 
@@ -67,7 +68,22 @@ def generate_photo_task(order_id: str):
         else:
             raise PolzaClientError("Polza.ai не вернул ни image_url, ни image_bytes в ответе")
 
-        result = GeneratedResult.objects.create(order=order, s3_key=s3_key, file_url=public_url)
+        preview_key = ""
+        if order.is_free_preview:
+            # Бесплатное превью: наружу уходит только копия ~512px со знаком,
+            # оригинал остаётся в приватном бакете до оплаты (см. free_preview.py)
+            preview_key = storage.upload_preview_bytes(
+                make_watermarked_preview(storage.download_bytes(s3_key)), str(order.id)
+            )
+            public_url = storage.generate_presigned_url(preview_key)
+
+        result = GeneratedResult.objects.create(
+            order=order,
+            s3_key=s3_key,
+            file_url=public_url,
+            is_free_preview=order.is_free_preview,
+            preview_s3_key=preview_key,
+        )
 
         order.status = Order.Status.DONE
         order.error_message = ""
@@ -116,9 +132,10 @@ def send_order_result_email(self, result_id: int):
         logger.info("У заказа %s нет пользователя с email — фото не отправляем", order.id)
         return
 
-    photo_url = storage.generate_presigned_url(result.s3_key)
+    # delivery_key: для неоплаченного бесплатного превью — копия со знаком
+    photo_url = storage.generate_presigned_url(result.delivery_key)
     try:
-        photo_bytes = storage.download_bytes(result.s3_key)
+        photo_bytes = storage.download_bytes(result.delivery_key)
     except Exception:
         # Не критично: письмо всё равно уйдёт, просто со ссылкой вместо
         # вшитой картинки — не хотим ронять всю отправку из-за этого
@@ -129,6 +146,8 @@ def send_order_result_email(self, result_id: int):
         "order": order,
         "photo_url": photo_url,
         "photo_cid": RESULT_PHOTO_CID if photo_bytes else None,
+        "is_preview": result.is_locked,
+        "results_url": f"{settings.FRONTEND_URL}/results/",
     }
     html_body = render_to_string("emails/order_result_email.html", context)
     text_body = strip_tags(html_body) + f"\n\nСкачать фото: {photo_url}"
@@ -144,9 +163,10 @@ def send_order_result_email(self, result_id: int):
 
         if photo_bytes:
             mail.mixed_subtype = "related"
-            image = MIMEImage(photo_bytes, _subtype="png")
+            subtype, filename = ("jpeg", "preview.jpg") if result.is_locked else ("png", "photo.png")
+            image = MIMEImage(photo_bytes, _subtype=subtype)
             image.add_header("Content-ID", f"<{RESULT_PHOTO_CID}>")
-            image.add_header("Content-Disposition", "inline", filename="photo.png")
+            image.add_header("Content-Disposition", "inline", filename=filename)
             mail.attach(image)
 
         mail.send(fail_silently=False)

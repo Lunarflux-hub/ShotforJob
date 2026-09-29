@@ -45,6 +45,13 @@ def _get_or_create_locked_balance(user) -> UserBalance:
     return UserBalance.objects.select_for_update().get(pk=balance.pk)
 
 
+def lock_balance(user) -> UserBalance:
+    """Публичная обёртка для вызывающего кода, которому нужно сериализовать
+    решения по пользователю (например, выдачу бесплатного превью в
+    photos.views.OrderCreateView). Только внутри transaction.atomic()."""
+    return _get_or_create_locked_balance(user)
+
+
 @transaction.atomic
 def credit_generations(user, amount: int, *, kind=GenerationLedgerEntry.Kind.TOPUP, payment=None) -> UserBalance:
     """Начисляет `amount` генераций (используется при оплате пакета)."""

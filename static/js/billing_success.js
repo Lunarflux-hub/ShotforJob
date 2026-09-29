@@ -120,6 +120,32 @@
         return resp.json();
     }
 
+    // Оплата из «Скачать в HD»: вебхук уже списал 1 генерацию и открыл фото
+    async function showUnlockedPhoto(payment) {
+        if (!payment.unlock_result_id || !payment.unlock_done || !window.SFJUnlock) return;
+        const box = document.getElementById("receiptUnlock");
+        const text = document.getElementById("receiptUnlockText");
+        const btn = document.getElementById("receiptUnlockBtn");
+        try {
+            const resp = await window.PhotoStudioAuth.authFetch(`${API_BASE}/balance/`);
+            const balance = resp.ok ? (await resp.json()).balance : null;
+            text.textContent = balance === null
+                ? (window.SFJ_t ? window.SFJ_t("Фото разблокировано", "Photo unlocked") : "Фото разблокировано")
+                : window.SFJUnlock.balanceText(balance);
+        } catch (e) { /* без баланса — просто кнопка */ }
+        box.style.display = "block";
+        btn.addEventListener("click", async () => {
+            btn.disabled = true;
+            try {
+                // Фото уже открыто — повторный вызов ничего не списывает, только отдаёт ссылку
+                const data = await window.SFJUnlock.unlock(payment.unlock_result_id);
+                if (data) window.SFJUnlock.startDownload(data.result.download_url);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
+
     async function pollPayment(id) {
         const startedAt = Date.now();
 
@@ -139,6 +165,7 @@
 
             if (payment.status === "paid") {
                 showTicket(payment);
+                showUnlockedPhoto(payment);
                 if (window.PhotoStudioAuth) window.PhotoStudioAuth.refreshBalance();
                 return;
             }

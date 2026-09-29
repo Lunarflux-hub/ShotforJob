@@ -128,6 +128,16 @@
         text-decoration: underline;
     }
 
+    .preview-badge {
+        font-size: 12px;
+        padding: 3px 10px;
+        border-radius: 40px;
+        background: #fff4e5;
+        color: #b06a00;
+    }
+    .unlock-message { font-size: 15px; font-weight: 600; color: #1c8a53; text-align: center; margin-bottom: 16px; }
+    [data-theme="dark"] .preview-badge { background: rgba(255, 152, 0, 0.16); color: #ffb648; }
+
     /* Заголовки страницы */
     .page-title {
         font-weight: 700;
@@ -155,11 +165,13 @@
             Пока нет ни одной генерации. <a href="{% url 'workstation' %}">Попробовать прямо сейчас →</a>
         </div>
         <div id="resultsError" class="d-none"></div>
+        <p id="resultsUnlockMessage" class="unlock-message d-none" aria-live="polite"></p>
         <ul id="resultsList" class="d-none"></ul>
     </div>
 {% endblock %}
 
 {% block extra_js %}
     <!-- Скрипт для работы с результатами (auth.js уже загружен в base) -->
+    <script src="{% static 'js/unlock.js' %}"></script>
     <script src="{% static 'js/results.js' %}"></script>
 {% endblock %}

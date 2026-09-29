@@ -166,6 +166,15 @@ class Payment(models.Model):
         related_name="payments",
     )
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    # «Скачать в HD» без генераций на балансе: после подтверждённой оплаты
+    # вебхук сам спишет 1 генерацию и разблокирует этот результат
+    unlock_result = models.ForeignKey(
+        "photos.GeneratedResult",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="unlock_payments",
+    )
     status = models.CharField(
         max_length=10,
         choices=Status.choices,

@@ -58,7 +58,9 @@ def download_bytes(key: str) -> bytes:
     return obj["Body"].read()
 
 
-def generate_presigned_url(key: str, expires_in: int = PRESIGNED_URL_EXPIRES_IN) -> str:
+def generate_presigned_url(
+    key: str, expires_in: int = PRESIGNED_URL_EXPIRES_IN, download_name: str | None = None
+) -> str:
     """
     Генерирует временную подписанную ссылку на объект в приватном бакете.
     Вызывается заново при каждой сериализации GeneratedResult (см.
@@ -66,12 +68,12 @@ def generate_presigned_url(key: str, expires_in: int = PRESIGNED_URL_EXPIRES_IN)
     даже если он откроет историю заказов спустя долгое время.
     """
     client = _get_s3_client()
+    params = {"Bucket": settings.YC_S3_BUCKET_NAME, "Key": key}
+    if download_name:
+        # Браузер скачает файл с этим именем, а не откроет картинку во вкладке
+        params["ResponseContentDisposition"] = f'attachment; filename="{download_name}"'
     try:
-        return client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": settings.YC_S3_BUCKET_NAME, "Key": key},
-            ExpiresIn=expires_in,
-        )
+        return client.generate_presigned_url("get_object", Params=params, ExpiresIn=expires_in)
     except Exception:
         logger.exception("Не удалось сгенерировать presigned URL для ключа %s", key)
         raise
@@ -100,3 +102,10 @@ def upload_generated_bytes(data: bytes, order_id: str) -> tuple[str, str]:
     key = f"results/{order_id}/{uuid.uuid4()}.png"
     upload_bytes(data, key, content_type="image/png")
     return key, generate_presigned_url(key)
+
+def upload_preview_bytes(data: bytes, order_id: str) -> str:
+    """Копия бесплатного превью с водяным знаком (см. free_preview.py) —
+    отдельный ключ рядом с оригиналом. Возвращает s3_key."""
+    key = f"previews/{order_id}/{uuid.uuid4()}.jpg"
+    upload_bytes(data, key, content_type="image/jpeg")
+    return key

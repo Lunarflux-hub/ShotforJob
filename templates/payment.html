@@ -66,6 +66,17 @@
         margin-top: 2px;
     }
 
+    .payment-unlock-note {
+        margin-bottom: 20px;
+        padding: 14px 18px;
+        border-radius: 14px;
+        background: #e6f7ee;
+        color: #1c6b44;
+        font-size: 14px;
+        line-height: 1.45;
+    }
+    [data-theme="dark"] .payment-unlock-note { background: rgba(34, 197, 94, 0.14); color: #86efac; }
+
     .payment-section-title {
         font-size: 18px;
         font-weight: 700;
@@ -449,10 +460,17 @@
         <span class="balance-summary-hint" data-en="1 generation = 1 photo">1 генерация = 1 фото</span>
     </div>
 
+    {% if unlock_result_id %}
+    <div class="payment-unlock-note"
+         data-en="After payment your photo is unlocked automatically in HD without the watermark — it uses 1 generation from the package.">
+        После оплаты фото автоматически откроется в HD без водяного знака — на него уйдёт 1 генерация из пакета.
+    </div>
+    {% endif %}
+
     <div class="payment-card">
         <h2 class="payment-section-title" data-en="Generation packages">Пакеты генераций</h2>
         {# Карточки рендерятся на сервере — цены видны сразу и без JS (apps/billing/catalog.py) #}
-        <div id="paymentPackages" class="tariffs-grid" role="radiogroup" aria-label="Пакет генераций">
+        <div id="paymentPackages" class="tariffs-grid" role="radiogroup" aria-label="Пакет генераций" data-unlock-result-id="{{ unlock_result_id }}">
             {% for t in tariffs %}
                 {% include "partials/tariff_card.html" with t=t mode="select" selected_id=selected_package_id %}
             {% empty %}
@@ -639,6 +657,7 @@
                 body: JSON.stringify({
                     package_id: packageId,
                     promo_code: appliedPromo ? appliedPromo.code : undefined,
+                    unlock_result_id: packagesEl.dataset.unlockResultId || undefined,
                 }),
             });
 
