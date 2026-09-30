@@ -803,7 +803,9 @@
     .tariffs-grid {
         display: flex;
         flex-wrap: wrap;
-        justify-content: space-between;
+        /* Карточки плотной группой по центру: space-between при трёх тарифах
+           разносил их по краям широкого экрана */
+        justify-content: center;
         gap: 30px 24px;
         padding-left: 0;
         padding-right: 0;
@@ -816,7 +818,8 @@
         padding: 40px 0;
     }
     .tariff-card {
-        flex: 0 1 calc(25% - 18px);
+        flex: 0 1 320px;
+        max-width: 340px;
         min-width: 220px;
         background: #ffffff;
         border: 1px solid #e2e2e2;
