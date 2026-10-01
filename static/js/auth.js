@@ -239,6 +239,35 @@
         if (confirm("Выйти из аккаунта?")) window.PhotoStudioAuth.logout();
     });
 
+    // ---------- Куда вернуть после входа (?next=) ----------
+    // Ссылки «только для вошедших» ведут на /login/?next=<путь>. Принимаем
+    // только внутренний путь («/…», но не «//…» и не URL с протоколом), чтобы
+    // ссылкой нельзя было увести на чужой сайт. Для Яндекса next сохраняется
+    // в sessionStorage: при возврате с oauth.yandex.ru параметров уже нет.
+    const NEXT_KEY = "sfj_login_next";
+
+    function safeNext(value) {
+        if (!value || typeof value !== "string") return null;
+        if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return null;
+        return value;
+    }
+
+    function rememberNext() {
+        const next = safeNext(new URLSearchParams(window.location.search).get("next"));
+        try {
+            if (next) sessionStorage.setItem(NEXT_KEY, next);
+        } catch (e) { /* приватный режим — вернёмся на главную */ }
+    }
+
+    function afterLoginUrl() {
+        let next = safeNext(new URLSearchParams(window.location.search).get("next"));
+        try {
+            next = next || safeNext(sessionStorage.getItem(NEXT_KEY));
+            sessionStorage.removeItem(NEXT_KEY);
+        } catch (e) { /* ignore */ }
+        return next || "/";
+    }
+
     // ---------- Google Identity Services (вызывается их скриптом напрямую) ----------
     window.handleGoogleLogin = async function (response) {
         try {
@@ -250,7 +279,7 @@
             if (!resp.ok) throw new Error("Не удалось войти через Google");
             const data = await resp.json();
             saveSession(data.access, data.refresh, data.profile);
-            window.location.href = "/";
+            window.location.href = afterLoginUrl();
         } catch (e) {
             alert(e.message);
         }
@@ -258,6 +287,7 @@
 
     // ---------- Yandex ID: implicit flow ----------
     function startYandexLogin() {
+        rememberNext();
         const clientId = window.YANDEX_OAUTH_CLIENT_ID;
         if (!clientId) {
             alert("Yandex OAuth client_id не настроен (YANDEX_OAUTH_CLIENT_ID в .env)");
@@ -289,7 +319,7 @@
             if (!resp.ok) throw new Error("Не удалось войти через Yandex ID");
             const data = await resp.json();
             saveSession(data.access, data.refresh, data.profile);
-            window.location.href = "/";
+            window.location.href = afterLoginUrl();
         } catch (e) {
             alert(e.message);
         }

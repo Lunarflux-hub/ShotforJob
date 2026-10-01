@@ -9,29 +9,17 @@
     const t = (ru, en) => (window.SFJ_t ? window.SFJ_t(ru, en) : ru);
     const unlockMessageEl = document.getElementById("resultsUnlockMessage");
 
-    // «Скачать в HD» у бесплатного превью — делегирование, т.к. список рендерится динамически
-    listEl.addEventListener("click", async (e) => {
-        const btn = e.target.closest(".js-unlock");
-        if (!btn) return;
-        btn.disabled = true;
-        try {
-            const data = await window.SFJUnlock.unlock(btn.dataset.resultId);
-            if (!data) return; // ушли на оплату
-            if (data.charged && unlockMessageEl) {
-                unlockMessageEl.textContent = window.SFJUnlock.balanceText(data.balance);
-                unlockMessageEl.classList.remove("d-none");
-            }
-            window.SFJUnlock.startDownload(data.result.download_url);
-            const orderId = btn.closest(".order-item").dataset.orderId;
-            listEl.innerHTML = "";
-            await loadHistory();
-            showInlineReview(listEl.querySelector(`.order-item[data-order-id="${orderId}"]`));
-        } catch (err) {
-            errorEl.textContent = err.message;
-            errorEl.classList.remove("d-none");
-            btn.disabled = false;
+    // Превью открылось с баланса («Скачать в HD · 1 генерация» в unlock.js)
+    async function handleUnlocked(orderId, data) {
+        if (data.charged && unlockMessageEl) {
+            unlockMessageEl.textContent = window.SFJUnlock.balanceText(data.balance);
+            unlockMessageEl.classList.remove("d-none");
         }
-    });
+        window.SFJUnlock.startDownload(data.result.download_url);
+        listEl.innerHTML = "";
+        await loadHistory();
+        showInlineReview(listEl.querySelector(`.order-item[data-order-id="${orderId}"]`));
+    }
 
     const STATUS_LABELS = {
         pending: "в очереди",
@@ -63,9 +51,10 @@
         let actionsHtml;
         if (latestResult && latestResult.is_locked) {
             // Бесплатное превью: оригинал открывается через «Скачать в HD» (unlock.js)
+            // Кнопки оплаты в один шаг дорисует unlock.js (см. loadHistory)
             actionsHtml = `
                 <span class="preview-badge">${t("Превью со знаком", "Watermarked preview")}</span>
-                <button type="button" class="btn-pill primary js-unlock" data-result-id="${latestResult.id}">${t("Скачать в HD", "Download in HD")}</button>
+                <div class="js-offers" data-result-id="${latestResult.id}"></div>
             `;
         } else if (latestResult) {
             const reportUrl = `/support/?order_id=${order.id}&result_id=${latestResult.id}`;
@@ -171,6 +160,12 @@
 
             orders.forEach((order) => listEl.appendChild(renderOrder(order)));
             listEl.classList.remove("d-none");
+            listEl.querySelectorAll(".js-offers").forEach((box) => {
+                const orderId = box.closest(".order-item").dataset.orderId;
+                window.SFJUnlock.renderLockedActions(box, Number(box.dataset.resultId), {
+                    onUnlocked: (data) => handleUnlocked(orderId, data),
+                });
+            });
             // «Ещё 5 вариантов в другом стиле» — только уже платившим (upsell.js)
             if (orders.some((o) => o.results && o.results.length) && window.SFJUpsell) {
                 window.SFJUpsell.show(document.getElementById("upsellCard"));

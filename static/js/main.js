@@ -241,15 +241,18 @@
 
     function applyResultState(result) {
         downloadBtn.dataset.resultId = result.id;
+        const offers = document.getElementById("previewOffers");
         if (result.is_locked) {
-            // Оригинал ещё не оплачен — кнопка ведёт в «Скачать в HD»
+            // Оригинал ещё не оплачен: вместо «Скачать» — оплата этого фото в один шаг
             downloadBtn.dataset.locked = "1";
-            downloadBtn.removeAttribute("download");
-            downloadBtn.href = "#";
-            downloadBtn.textContent = t("Скачать в HD", "Download in HD");
+            downloadBtn.classList.add("d-none");
             previewNote.classList.remove("d-none");
             reviewBlock && reviewBlock.classList.add("d-none");
+            offers.classList.remove("d-none");
+            window.SFJUnlock.renderLockedActions(offers, result.id, { onUnlocked: handleUnlocked });
         } else {
+            offers.classList.add("d-none");
+            downloadBtn.classList.remove("d-none");
             downloadBtn.dataset.locked = "";
             downloadBtn.setAttribute("download", "");
             downloadBtn.href = result.download_url || result.file_url;
@@ -269,31 +272,21 @@
         }
     }
 
-    downloadBtn.addEventListener("click", async (e) => {
-        if (downloadBtn.dataset.locked !== "1") {
-            askReviewAfterDownload();  // обычное скачивание идёт своим ходом по ссылке
-            return;
+    // Превью открылось с баланса (кнопка «Скачать в HD · 1 генерация» в unlock.js)
+    function handleUnlocked(data) {
+        generatedImage.src = data.result.file_url;
+        applyResultState(data.result);
+        if (data.charged) {
+            unlockMessage.textContent = window.SFJUnlock.balanceText(data.balance);
+            unlockMessage.classList.remove("d-none");
+            loadBalance();
         }
-        e.preventDefault();
-        downloadBtn.classList.add("disabled");
-        try {
-            const data = await window.SFJUnlock.unlock(downloadBtn.dataset.resultId);
-            if (!data) return; // ушли на оплату
-            generatedImage.src = data.result.file_url;
-            applyResultState(data.result);
-            if (data.charged) {
-                unlockMessage.textContent = window.SFJUnlock.balanceText(data.balance);
-                unlockMessage.classList.remove("d-none");
-                loadBalance();
-            }
-            window.SFJUnlock.startDownload(data.result.download_url);
-            askReviewAfterDownload();
-        } catch (err) {
-            errorText.textContent = err.message;
-            errorBlock.classList.remove("d-none");
-        } finally {
-            downloadBtn.classList.remove("disabled");
-        }
+        window.SFJUnlock.startDownload(data.result.download_url);
+        askReviewAfterDownload();
+    }
+
+    downloadBtn.addEventListener("click", () => {
+        askReviewAfterDownload();  // обычное скачивание идёт своим ходом по ссылке
     });
 
     // ---------- Отзыв о генерации ----------
@@ -476,9 +469,7 @@
     document.addEventListener("sfj:lang", () => {
         if (!submitBtn.disabled) setSubmitText(idleSubmitText());
         if (downloadBtn.dataset.resultId) {
-            downloadBtn.textContent = downloadBtn.dataset.locked === "1"
-                ? t("Скачать в HD", "Download in HD")
-                : t("Скачать", "Download");
+            downloadBtn.textContent = t("Скачать", "Download");
         }
     });
 })();

@@ -126,6 +126,9 @@ class GeneratedResult(models.Model):
     unlocked = models.BooleanField(default=False, help_text="Превью оплачено — доступен оригинал в HD")
     unlocked_at = models.DateTimeField(null=True, blank=True)
     preview_s3_key = models.CharField(max_length=500, blank=True)
+    # Письмо «скачайте в HD» через 1–3 часа после превью (tasks.send_preview_reminders) —
+    # отправляется один раз
+    reminder_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

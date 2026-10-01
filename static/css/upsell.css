@@ -27,3 +27,34 @@
     text-decoration: none;
 }
 .upsell-card .upsell-btn:hover { background: #eaf1ff; }
+
+/* Кнопки под неоплаченным превью (static/js/unlock.js, renderLockedActions):
+   «Скачать это фото в HD — 49 ₽» + «5 фото за 199 ₽» */
+.preview-offers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    justify-content: center;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+.preview-offers .btn-pill {
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid #0066FF;
+}
+.preview-offers .btn-pill:disabled { opacity: 0.6; cursor: default; }
+.preview-offers .btn-pill.secondary { background: transparent; color: #0066FF; }
+.preview-offers .btn-pill.secondary:hover:not(:disabled) { background: #eaf1ff; }
+.offer-alt-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
+.offer-hint { font-size: 12px; opacity: 0.6; }
+/* /results: действия в строке заказа выровнены вправо */
+.order-actions .preview-offers { justify-content: flex-end; margin-bottom: 0; }
+.order-actions .preview-offers .btn-pill { font-size: 13px; padding: 8px 16px; }
+@media (max-width: 560px) {
+    .preview-offers { flex-direction: column; align-items: stretch; }
+    .offer-alt-wrap { align-items: stretch; text-align: center; }
+}
+[data-theme="dark"] .preview-offers .btn-pill.secondary { color: #5c9cff; border-color: #5c9cff; }
+[data-theme="dark"] .preview-offers .btn-pill.secondary:hover:not(:disabled) { background: rgba(0, 102, 255, 0.14); }

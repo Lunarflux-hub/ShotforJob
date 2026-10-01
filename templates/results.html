@@ -4,7 +4,7 @@
 {% block title %}Мои результаты{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/upsell.css' %}">
+<link rel="stylesheet" href="{% static 'css/upsell.css' %}?v=20261001">
 <style>
     /* ===== Критично: скрытие элементов по умолчанию ===== */
     .d-none {
@@ -200,7 +200,7 @@
 
 {% block extra_js %}
     <!-- Скрипт для работы с результатами (auth.js уже загружен в base) -->
-    <script src="{% static 'js/unlock.js' %}"></script>
-    <script src="{% static 'js/upsell.js' %}"></script>
-    <script src="{% static 'js/results.js' %}"></script>
+    <script src="{% static 'js/unlock.js' %}?v=20261001"></script>
+    <script src="{% static 'js/upsell.js' %}?v=20261001"></script>
+    <script src="{% static 'js/results.js' %}?v=20261001"></script>
 {% endblock %}

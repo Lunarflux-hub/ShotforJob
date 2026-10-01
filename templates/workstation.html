@@ -4,7 +4,7 @@
 {% block title %}ShotForJob — мастерская{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/upsell.css' %}">
+<link rel="stylesheet" href="{% static 'css/upsell.css' %}?v=20261001">
 <style>
     /* ===== Стили, специфичные для страницы мастерской ===== */
     body, .card, .field-label, .upload-drop-text, .clothing-option, .field-hint {
@@ -1144,6 +1144,8 @@
                     Это бесплатное превью с водяным знаком. Скачайте фото в HD без знака:
                 </p>
                 <p id="unlockMessage" class="unlock-message d-none" aria-live="polite"></p>
+                <!-- Неоплаченное превью: «Скачать это фото в HD — 49 ₽» + «5 фото за 199 ₽» (static/js/unlock.js) -->
+                <div id="previewOffers" class="d-none"></div>
                 <div class="result-actions">
                     <a id="downloadBtn" href="" download class="btn-pill primary">Скачать</a>
                 </div>
@@ -2077,7 +2079,7 @@
     document.addEventListener("DOMContentLoaded", loadHistoryWheel);
 })();
 </script>
-<script src="{% static 'js/unlock.js' %}"></script>
-<script src="{% static 'js/upsell.js' %}"></script>
-<script src="{% static 'js/main.js' %}"></script>
+<script src="{% static 'js/unlock.js' %}?v=20261001"></script>
+<script src="{% static 'js/upsell.js' %}?v=20261001"></script>
+<script src="{% static 'js/main.js' %}?v=20261001"></script>
 {% endblock %}

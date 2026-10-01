@@ -203,7 +203,9 @@
     document.addEventListener("DOMContentLoaded", () => {
         const loggedIn = window.PhotoStudioAuth && window.PhotoStudioAuth.isLoggedIn();
         if (!loggedIn) {
-            window.location.href = "/login/?next=/billing/history/";
+            // Оплата из письма-напоминания часто идёт без входа на сайт: после
+            // входа возвращаем на этот же чек (фото в HD уже ушло на почту)
+            window.location.href = "/login/?next=" + encodeURIComponent(location.pathname + location.search);
             return;
         }
 

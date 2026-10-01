@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import TemplateView
 
-from apps.billing.views import BotPayRedirectView, PaymentPageView
+from apps.billing.views import BotPayRedirectView, PaymentPageView, UnlockPayLinkView
 from apps.photos.views import LandingView
 
 urlpatterns = [
@@ -48,6 +48,7 @@ urlpatterns = [
     path("billing/fail/", TemplateView.as_view(template_name="billing_fail.html"), name="billing_fail"),
     path("billing/history/", TemplateView.as_view(template_name="billing_history.html"), name="billing_history"),
     path("billing/pay/<int:payment_id>/", BotPayRedirectView.as_view(), name="billing_bot_pay"),
+    path("billing/unlock/<int:result_id>/", UnlockPayLinkView.as_view(), name="billing_unlock_pay"),
     path("results/", TemplateView.as_view(template_name="results.html"), name="results"),
     # Бета: страница-оболочка открывается всем, но без доступа (см.
     # apps/carousels/access.py) API отвечает 404 и страница это показывает.

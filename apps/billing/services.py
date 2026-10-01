@@ -137,6 +137,45 @@ def create_topup_payment(user, package: GenerationPackage) -> Payment:
     )
 
 
+def create_unlock_payment(user, package: GenerationPackage, result) -> Payment:
+    """Платёж «скачать это фото в HD»: после подтверждения вебхук начислит
+    генерации пакета и сразу спишет одну на разблокировку result
+    (views.payanyway_result). Без промокода — оплата в один шаг."""
+    amount = base_amount_for(package, user)
+    return Payment.objects.create(
+        user=user,
+        package=package,
+        amount=amount,
+        generations_granted=package.generations,
+        is_test=is_test_payment(user, amount),
+        unlock_result=result,
+        **attribution.fields_for_payment(user),
+    )
+
+
+# Ссылка «оплатить и скачать в HD» из письма-напоминания: открывается без
+# входа на сайт (человек часто читает почту на другом устройстве), поэтому
+# адресуется подписанным токеном с id результата и пользователя.
+UNLOCK_LINK_SALT = "billing.unlock_link"
+UNLOCK_LINK_MAX_AGE = 7 * 24 * 3600
+
+
+def make_unlock_link(result) -> str:
+    token = signing.dumps({"r": result.id, "u": result.order.user_id}, salt=UNLOCK_LINK_SALT)
+    return f"{settings.FRONTEND_URL}/billing/unlock/{result.id}/?t={token}"
+
+
+def read_unlock_link_token(result_id: int, token: str) -> int | None:
+    """id пользователя из токена или None, если токен чужой/подделан/устарел."""
+    try:
+        value = signing.loads(token, salt=UNLOCK_LINK_SALT, max_age=UNLOCK_LINK_MAX_AGE)
+    except signing.BadSignature:
+        return None
+    if not isinstance(value, dict) or value.get("r") != result_id:
+        return None
+    return value.get("u")
+
+
 def make_pay_link(payment: Payment) -> str:
     """Подписанная ссылка на views.BotPayRedirectView — открывает
     автоотправляемую форму на PayAnyWay без сайтовой авторизации."""

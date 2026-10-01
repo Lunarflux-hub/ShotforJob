@@ -223,3 +223,100 @@ def cleanup_expired_uploads():
             backgrounds_deleted,
             settings.UPLOAD_RETENTION_HOURS,
         )
+
+REMINDER_MIN_AGE = timedelta(hours=1)
+REMINDER_MAX_AGE = timedelta(hours=3)
+REMINDER_PHOTO_CID = "preview_photo"
+
+
+@shared_task
+def send_preview_reminders():
+    """
+    Раз в 15 минут (config/celery.py): письмо «Ваше фото готово — скачайте в
+    HD за 49 ₽» по бесплатным превью, которым от 1 до 3 часов и которые всё
+    ещё не оплачены. Одно письмо на превью — право на отправку забирается
+    атомарным UPDATE по reminder_sent_at, параллельные запуски не задублируют.
+
+    Не через apply_async(countdown=…): с брокером Redis задача, отложенная
+    дольше visibility_timeout (1 час), может быть доставлена повторно.
+    """
+    from apps.billing.models import Payment
+
+    now = timezone.now()
+    candidates = (
+        GeneratedResult.objects.filter(
+            is_free_preview=True,
+            unlocked=False,
+            reminder_sent_at__isnull=True,
+            created_at__lte=now - REMINDER_MIN_AGE,
+            created_at__gte=now - REMINDER_MAX_AGE,
+        )
+        .select_related("order__user")
+    )
+    for result in candidates:
+        user = result.order.user
+        if user is None or not user.email:
+            continue
+        if Payment.objects.filter(user=user, status=Payment.Status.PAID).exists():
+            continue  # уже покупатель — «за 49 ₽» ему не по адресу, фото откроет с баланса
+        claimed = GeneratedResult.objects.filter(id=result.id, reminder_sent_at__isnull=True).update(
+            reminder_sent_at=now
+        )
+        if claimed:
+            send_preview_reminder_email.delay(result.id)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_preview_reminder_email(self, result_id: int):
+    from apps.billing import catalog, services as billing_services
+
+    try:
+        result = GeneratedResult.objects.select_related("order__user").get(id=result_id)
+    except GeneratedResult.DoesNotExist:
+        return
+    user = result.order.user
+    if not result.is_locked or user is None or not user.email:
+        return  # успел оплатить, пока ждали очереди
+
+    single, bundle = catalog.unlock_offers()
+    if single is None:
+        logger.warning("Нет пакета на 1 фото — напоминание по превью %s не отправлено", result_id)
+        return
+    link = billing_services.make_unlock_link(result)
+    context = {
+        "single_price": catalog.format_price(single.price),
+        "single_url": link,
+        "bundle": bundle,
+        "bundle_price": catalog.format_price(bundle.price) if bundle else "",
+        "bundle_url": f"{link}&package={bundle.slug}" if bundle else "",
+        "photo_cid": REMINDER_PHOTO_CID,
+        "results_url": f"{settings.FRONTEND_URL}/results/",
+    }
+    try:
+        photo_bytes = storage.download_bytes(result.preview_s3_key)
+    except Exception:  # noqa: BLE001 — без картинки письмо всё равно полезно
+        logger.exception("Не удалось скачать превью %s для напоминания", result_id)
+        photo_bytes = None
+        context["photo_cid"] = None
+
+    html_body = render_to_string("emails/preview_reminder_email.html", context)
+    text_body = strip_tags(html_body) + f"\n\nСкачать в HD: {link}"
+    try:
+        mail = EmailMultiAlternatives(
+            subject=f"Ваше фото готово — скачайте в HD за {context['single_price']} ₽",
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        mail.attach_alternative(html_body, "text/html")
+        if photo_bytes:
+            mail.mixed_subtype = "related"
+            image = MIMEImage(photo_bytes, _subtype="jpeg")
+            image.add_header("Content-ID", f"<{REMINDER_PHOTO_CID}>")
+            image.add_header("Content-Disposition", "inline", filename="preview.jpg")
+            mail.attach(image)
+        mail.send(fail_silently=False)
+        logger.info("Напоминание по превью %s отправлено на %s", result_id, user.email)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Не удалось отправить напоминание по превью %s", result_id)
+        raise self.retry(exc=exc)

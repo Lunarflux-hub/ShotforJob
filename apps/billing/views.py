@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 from apps.accounts import attribution
 from apps.photos.models import GeneratedResult
 from apps.photos.services import free_preview
+from apps.photos.tasks import send_order_result_email
 
 from .models import GenerationPackage, Payment, GenerationLedgerEntry, PromoCode
 from .payanyway import build_payment_request, verify_pay_url_signature
@@ -122,7 +123,17 @@ class BillingConfigView(APIView):
                     "promo_price": str(p.first_purchase_price) if promo_active else None,
                 }
             )
-        return Response({"packages": packages})
+        # Что предлагать под бесплатным превью: «это фото — 49 ₽» и «5 фото — 199 ₽»
+        single, bundle = catalog.unlock_offers()
+        return Response(
+            {
+                "packages": packages,
+                "unlock_offers": {
+                    "single": single.id if single else None,
+                    "bundle": bundle.id if bundle else None,
+                },
+            }
+        )
 
 
 class PromoCodeCheckView(APIView):
@@ -368,6 +379,11 @@ def payanyway_result(request):
                 free_preview.unlock(payment.unlock_result, payment.user)
             except services.InsufficientBalanceError:
                 pass  # не должно случиться сразу после начисления; фото откроется вручную
+            else:
+                # Фото в HD — сразу на почту: из письма-напоминания часто платят
+                # с телефона без входа на сайт, и иначе забрать фото негде
+                result_id = payment.unlock_result_id
+                transaction.on_commit(lambda: send_order_result_email.delay(result_id))
 
         # on_commit — задачи ставятся в очередь, только если транзакция
         # успешно зафиксирована (иначе Celery-воркер может прочитать ещё
@@ -465,3 +481,43 @@ class PaymentPageView(TemplateView):
         unlock = self.request.GET.get("unlock", "")
         context["unlock_result_id"] = unlock if unlock.isdigit() else ""
         return context
+
+
+class UnlockPayLinkView(View):
+    """
+    GET /billing/unlock/<result_id>/?t=<токен>[&package=<slug>] — ссылка из
+    письма-напоминания «скачайте в HD за 49 ₽». Работает без входа на сайт
+    (подписанный токен, services.make_unlock_link): создаёт платёж с
+    разблокировкой этого фото и сразу отправляет на PayAnyWay. Пакет — «одно
+    фото» по умолчанию или второй вариант (package=optimal) из unlock_offers.
+    """
+
+    def get(self, request, result_id):
+        user_id = services.read_unlock_link_token(result_id, request.GET.get("t", ""))
+        if user_id is None:
+            return render(
+                request, "billing_bot_pay_error.html",
+                {"message": "Ссылка недействительна или устарела. Откройте фото в разделе «Мои результаты» на сайте."},
+                status=400,
+            )
+
+        result = GeneratedResult.objects.select_related("order__user").filter(id=result_id, order__user_id=user_id).first()
+        if result is None:
+            return render(request, "billing_bot_pay_error.html", {"message": "Фото не найдено."}, status=404)
+        if not result.is_locked:
+            return render(
+                request, "billing_bot_pay_error.html",
+                {"message": "Это фото уже разблокировано — оно в разделе «Мои результаты» и у вас на почте."},
+            )
+
+        offers = [p for p in catalog.unlock_offers() if p is not None]
+        wanted = request.GET.get("package", "")
+        package = next((p for p in offers if p.slug == wanted), offers[0] if offers else None)
+        if package is None:
+            return render(request, "billing_bot_pay_error.html", {"message": "Оплата временно недоступна."}, status=503)
+
+        user = result.order.user
+        payment = services.create_unlock_payment(user, package, result)
+        description = f"Пакет «{package.title}» — {package.generations} генераций (фото в HD)"
+        req = build_payment_request(payment, description, email=user.email or None)
+        return render(request, "billing_bot_pay.html", {"action_url": req["action_url"], "fields": req["fields"]})

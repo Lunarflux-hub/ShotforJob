@@ -143,10 +143,13 @@ class ResultUnlockView(APIView):
         try:
             charged = free_preview.unlock(result, request.user)
         except InsufficientBalanceError:
+            # Оплата именно этого фото — самый дешёвый пакет на 1 фото («Старт»)
+            single, _ = catalog.unlock_offers()
+            slug = single.slug if single else "optimal"
             return Response(
                 {
                     "error": "insufficient_balance",
-                    "pay_url": f"/payment/?package=optimal&unlock={result.id}",
+                    "pay_url": f"/payment/?package={slug}&unlock={result.id}",
                 },
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
