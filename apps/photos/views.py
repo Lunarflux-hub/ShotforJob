@@ -17,7 +17,7 @@ from .serializers import (
     OrderSerializer,
     PhotoStyleSerializer,
 )
-from .services import free_preview
+from .services import free_preview, funnel
 from .services.reviews import landing_reviews, photos_generated_count, save_review
 from .tasks import generate_photo_task
 from .utils import ANON_ID_COOKIE, ANON_ID_MAX_AGE, get_or_create_anon_id
@@ -65,7 +65,14 @@ class OrderCreateView(OrderOwnershipMixin, APIView):
 
     def post(self, request):
         serializer = OrderCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        user_agent = request.META.get("HTTP_USER_AGENT", "")[:300]
+        session_id = request.META.get("HTTP_X_FUNNEL_SESSION", "")
+        if not serializer.is_valid():
+            funnel.record(
+                "order_rejected", user=request.user, session_id=session_id, user_agent=user_agent,
+                meta={"reason": "invalid", "fields": sorted(serializer.errors)},
+            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         ip = free_preview.client_ip(request)
 
         try:
@@ -91,6 +98,8 @@ class OrderCreateView(OrderOwnershipMixin, APIView):
                     background_image=serializer.validated_data.get("background_image"),
                     is_free_preview=is_free,
                     client_ip=ip,
+                    device=funnel.detect_device(user_agent),
+                    user_agent=user_agent,
                 )
                 if not is_free:
                     spend_generation(request.user, order=order)
@@ -98,6 +107,10 @@ class OrderCreateView(OrderOwnershipMixin, APIView):
                 for photo in serializer.validated_data["photos"]:
                     UploadedPhoto.objects.create(order=order, image=photo)
         except InsufficientBalanceError as exc:
+            funnel.record(
+                "order_rejected", user=request.user, session_id=session_id, user_agent=user_agent,
+                meta={"reason": "insufficient_balance", "free_preview": free_preview.eligibility(request.user, ip) or "eligible"},
+            )
             return Response(
                 {
                     "error": "insufficient_balance",
@@ -107,6 +120,10 @@ class OrderCreateView(OrderOwnershipMixin, APIView):
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
 
+        funnel.record(
+            "order_created", user=request.user, order=order, session_id=session_id, user_agent=user_agent,
+            meta={"free_preview": order.is_free_preview, "photos": len(serializer.validated_data["photos"])},
+        )
         generate_photo_task.delay(str(order.id))
 
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
@@ -228,3 +245,43 @@ class LandingView(TemplateView):
         context["reviews_duration"] = len(context["reviews"]) * 8
         context["photos_generated"] = photos_generated_count()
         return context
+
+
+class FunnelAnonThrottle(AnonRateThrottle):
+    scope = "funnel"
+
+
+class FunnelUserThrottle(UserRateThrottle):
+    scope = "funnel"
+
+
+class FunnelEventView(APIView):
+    """
+    POST /api/funnel/ — этап пути на /workstation из браузера
+    (static/js/funnel.js): { stage, session_id, meta?, order_id? }.
+    Принимаются только этапы из funnel.CLIENT_STAGES; заказ привязывается,
+    только если он принадлежит этому пользователю. Всегда 204 — браузеру
+    ответ не нужен.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [FunnelAnonThrottle, FunnelUserThrottle]
+
+    def post(self, request):
+        stage = str(request.data.get("stage", ""))
+        if stage not in funnel.CLIENT_STAGES:
+            return Response({"detail": "unknown stage"}, status=status.HTTP_400_BAD_REQUEST)
+        user = request.user if request.user.is_authenticated else None
+        order = None
+        order_id = request.data.get("order_id")
+        if order_id and user:
+            order = Order.objects.filter(id=order_id, user=user).first()
+        funnel.record(
+            stage,
+            user=user,
+            order=order,
+            session_id=str(request.data.get("session_id", "")),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            meta=request.data.get("meta"),
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)

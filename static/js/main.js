@@ -156,7 +156,12 @@
     const MAX_POLL_ERRORS_IN_A_ROW = 5; // ~5 неудачных тиков подряд (15с при интервале 3с)
     let pollErrorStreak = 0;
 
+    let currentPollOrderId = null;
+    let hiddenDuringGeneration = false;
+
     function startPolling(orderId) {
+        currentPollOrderId = orderId;
+        hiddenDuringGeneration = false;
         stopPolling();
         pollErrorStreak = 0;
         pollTimer = setInterval(() => fetchOrderStatus(orderId), POLL_INTERVAL_MS);
@@ -215,6 +220,7 @@
         }
 
         if (order.status === "failed") {
+            window.SFJFunnel && window.SFJFunnel.track("result_failed_seen", {}, order.id);
             errorText.textContent = order.error_message || "Не удалось сгенерировать фото";
             errorBlock.classList.remove("d-none");
         }
@@ -228,9 +234,10 @@
     function showResult(order, result) {
         currentOrder = order;
         // Цель Метрики: готово бесплатное превью (один раз на заказ за визит страницы)
-        if (order.is_free_preview && !reportedPreviews.has(order.id)) {
+        if (!reportedPreviews.has(order.id)) {
             reportedPreviews.add(order.id);
-            window.ymReach && window.ymReach("preview_generated");
+            if (order.is_free_preview) window.ymReach && window.ymReach("preview_generated");
+            window.SFJFunnel && window.SFJFunnel.track("result_seen", { is_free_preview: !!order.is_free_preview, hidden_before: hiddenDuringGeneration }, order.id);
         }
         generatedImage.src = result.file_url;
         imageBlock.classList.remove("d-none");
@@ -358,12 +365,15 @@
 
         const styleId = styleSelect.value;
         const files = photoInput.files;
+        window.SFJFunnel && window.SFJFunnel.track("submit_clicked", { photos: files.length, has_style: !!styleId, free_preview: freePreviewEligible });
 
         if (!styleId) {
+            window.SFJFunnel && window.SFJFunnel.track("submit_blocked", { reason: "no_style" });
             showFormError("Выберите стиль");
             return;
         }
         if (files.length < 1 || files.length > 3) {
+            window.SFJFunnel && window.SFJFunnel.track("submit_blocked", { reason: files.length ? "too_many_photos" : "no_photos" });
             showFormError("Загрузите от 1 до 3 фото");
             return;
         }
@@ -416,9 +426,12 @@
             const resp = await doFetch(`${API_BASE}/orders/`, {
                 method: "POST",
                 body: formData,
+                // Связывает серверные этапы (order_created / order_rejected) с клиентскими
+                headers: window.SFJFunnel ? { "X-Funnel-Session": window.SFJFunnel.sessionId } : {},
             });
 
             if (!resp.ok) {
+                window.SFJFunnel && window.SFJFunnel.track("submit_error", { status: resp.status });
                 if (resp.status === 402) {
                     const err = await resp.json().catch(() => ({}));
                     showFormError(t(
@@ -450,6 +463,7 @@
                 freePreviewHint && freePreviewHint.classList.add("d-none");
             }
         } catch (e) {
+            if (e instanceof TypeError) window.SFJFunnel && window.SFJFunnel.track("submit_error", { status: 0, network: true });  // сеть оборвалась
             showFormError(e.message);
             submitBtn.disabled = false;
         } finally {
@@ -465,6 +479,15 @@
     loadStyles();
     loadBalance();
     loadFreePreviewStatus();
+
+    // Воронка: открытие страницы и сворачивание/возврат во время генерации
+    const loggedIn = !!(window.PhotoStudioAuth && window.PhotoStudioAuth.isLoggedIn());
+    window.SFJFunnel && window.SFJFunnel.track("page_open", { logged_in: loggedIn });
+    document.addEventListener("visibilitychange", () => {
+        if (!pollTimer) return;
+        if (document.visibilityState === "hidden") hiddenDuringGeneration = true;
+        window.SFJFunnel && window.SFJFunnel.track(document.visibilityState === "hidden" ? "page_hidden" : "page_visible", {}, currentPollOrderId);
+    });
 
     document.addEventListener("sfj:lang", () => {
         if (!submitBtn.disabled) setSubmitText(idleSubmitText());

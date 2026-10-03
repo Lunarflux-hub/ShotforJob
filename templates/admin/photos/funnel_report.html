@@ -1,0 +1,43 @@
+{% extends "admin/base_site.html" %}
+{% comment %}Воронка /workstation — apps/photos/admin.py (FunnelEventAdmin.report_view){% endcomment %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Начало</a> ›
+    <a href="{% url 'admin:photos_funnelevent_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a> › Отчёт
+</div>
+{% endblock %}
+{% block extrastyle %}{{ block.super }}
+<style>
+    .fr-form { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; margin: 8px 0 16px; }
+    .fr-form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+    table.fr td.num, table.fr th.num { text-align: right; }
+    .fr-note { color: var(--body-quiet-color); margin-bottom: 16px; }
+</style>
+{% endblock %}
+{% block content %}
+<div id="content-main">
+    <form method="get" class="fr-form">
+        <label>С <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}"></label>
+        <label>По <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}"></label>
+        <input type="submit" value="Показать">
+    </form>
+    <p class="fr-note">Шаги в браузере считаются по уникальным браузерам (session_id), шаги сервера — по заказам. Один человек может пройти шаг несколько раз — здесь он учтён один раз.</p>
+    <table class="fr">
+        <thead><tr><th>Шаг</th>{% for d in devices %}<th class="num">{{ d }}</th>{% endfor %}<th class="num">Всего</th></tr></thead>
+        <tbody>
+        {% for row in rows %}
+            <tr><td>{{ row.label }} <small style="color:var(--body-quiet-color)">{{ row.stage }}</small></td>
+                {% for v in row.values %}<td class="num">{{ v }}</td>{% endfor %}<td class="num"><b>{{ row.total }}</b></td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <h2 style="margin-top:24px">Причины ошибок и отказов</h2>
+    <table class="fr">
+        <thead><tr><th>Шаг</th><th>Устройство</th><th>Причина</th><th class="num">Раз</th></tr></thead>
+        <tbody>
+        {% for key, n in reasons %}<tr><td>{{ key.0 }}</td><td>{{ key.1 }}</td><td>{{ key.2 }}</td><td class="num">{{ n }}</td></tr>
+        {% empty %}<tr><td colspan="4">Нет ошибок за период</td></tr>{% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

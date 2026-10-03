@@ -85,6 +85,9 @@ class Order(models.Model):
     is_free_preview = models.BooleanField(default=False)
     # IP, с которого создан заказ — для лимита бесплатных превью (X-Real-IP от nginx)
     client_ip = models.GenericIPAddressField(null=True, blank=True)
+    # Устройство и User-Agent на момент создания заказа — разбивка отвала по iOS/Android/десктопу
+    device = models.CharField(max_length=10, blank=True)
+    user_agent = models.CharField(max_length=300, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -181,3 +184,39 @@ class OrderReview(models.Model):
 
     def __str__(self):
         return f"Отзыв {self.rating}★ на {self.order_id}"
+
+
+class FunnelEvent(models.Model):
+    """
+    Этап пути пользователя на /workstation — чтобы отвал между «загрузил фото»
+    и «получил превью» был виден не только в Метрике. Клиентские этапы шлёт
+    static/js/funnel.js (POST /api/funnel/), серверные пишутся из
+    views.OrderCreateView и tasks.generate_photo_task (services/funnel.py).
+    session_id — случайный id вкладки/браузера, связывает этапы одного
+    человека и до входа в аккаунт.
+    """
+
+    class Device(models.TextChoices):
+        IOS = "ios", "iOS"
+        ANDROID = "android", "Android"
+        DESKTOP = "desktop", "Десктоп"
+        OTHER = "other", "Другое"
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    stage = models.CharField(max_length=40, db_index=True)
+    session_id = models.CharField(max_length=64, blank=True, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="funnel_events"
+    )
+    order = models.ForeignKey(Order, null=True, blank=True, on_delete=models.SET_NULL, related_name="funnel_events")
+    device = models.CharField(max_length=10, choices=Device.choices, default=Device.OTHER)
+    user_agent = models.CharField(max_length=300, blank=True)
+    meta = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Этап воронки"
+        verbose_name_plural = "Воронка /workstation"
+
+    def __str__(self):
+        return f"{self.stage} ({self.device}) {self.created_at:%d.%m %H:%M}"

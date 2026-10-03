@@ -13,6 +13,7 @@ from apps.telegram_bot.notifications import notify_order_result
 
 from .models import GeneratedResult, Order
 from .services import storage
+from .services import funnel
 from .services.free_preview import make_watermarked_preview
 from .services.polza_client import PolzaClientError, generate_image_from_reference
 from .services.prompt_builder import build_prompt
@@ -40,12 +41,15 @@ def generate_photo_task(order_id: str):
 
     order.status = Order.Status.PROCESSING
     order.save(update_fields=["status", "updated_at"])
+    started = timezone.now()
+    funnel.record("generation_started", order=order, meta={"queued_s": round((started - order.created_at).total_seconds())})
 
     photos = list(order.uploaded_photos.all())
     if not photos:
         order.status = Order.Status.FAILED
         order.error_message = "Нет загруженных фото для генерации"
         order.save(update_fields=["status", "error_message", "updated_at"])
+        funnel.record("generation_failed", order=order, meta={"error": "no photos", "kind": "internal"})
         return
 
     prompt = build_prompt(order)
@@ -88,6 +92,7 @@ def generate_photo_task(order_id: str):
         order.status = Order.Status.DONE
         order.error_message = ""
         order.save(update_fields=["status", "error_message", "updated_at"])
+        funnel.record("generation_done", order=order, meta={"duration_s": round((timezone.now() - started).total_seconds())})
 
         if order.user_id and order.user.email:
             send_order_result_email.delay(result.id)
@@ -98,6 +103,7 @@ def generate_photo_task(order_id: str):
         order.status = Order.Status.FAILED
         order.error_message = str(exc)
         order.save(update_fields=["status", "error_message", "updated_at"])
+        funnel.record("generation_failed", order=order, meta={"error": str(exc)[:200], "kind": "polza"})
         notify_order_result(order)
 
     except Exception as exc:  # noqa: BLE001
@@ -105,6 +111,7 @@ def generate_photo_task(order_id: str):
         order.status = Order.Status.FAILED
         order.error_message = f"Внутренняя ошибка: {exc}"
         order.save(update_fields=["status", "error_message", "updated_at"])
+        funnel.record("generation_failed", order=order, meta={"error": str(exc)[:200], "kind": "internal"})
         notify_order_result(order)
 
 

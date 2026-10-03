@@ -153,6 +153,9 @@ REST_FRAMEWORK = {
         # Живое превью блоков в редакторе каруселей: запрос на каждую паузу
         # в наборе текста и на каждую смену оформления (по запросу на блок).
         "carousel_preview": "10000/day",
+        # Этапы воронки /workstation (static/js/funnel.js) — несколько десятков
+        # событий за визит; отдельный лимит, чтобы не съедать общий "anon" 20/day
+        "funnel": "600/hour",
     },
 }
 
@@ -318,3 +321,22 @@ if not DEBUG:
 # CSRF должен явно знать домен(ы), с которых приходят формы/запросы (Django
 # по умолчанию доверяет только ALLOWED_HOSTS для http, а не для https-схемы).
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+# --- Логирование ---------------------------------------------------------------
+# Без этой настройки Python отбрасывал всё ниже WARNING: logger.info() в коде
+# приложений (отправка писем, этапы воронки /workstation) в логи не попадал.
+# Пишем в stdout — Docker собирает его в `docker logs <контейнер>`.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "plain": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "plain"},
+    },
+    "loggers": {
+        # Этапы воронки: funnel stage=… user=… device=… order=… (apps/photos/services/funnel.py)
+        "funnel": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "apps": {"handlers": ["console"], "level": env("APP_LOG_LEVEL", default="INFO"), "propagate": False},
+    },
+}

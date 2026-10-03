@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     FreePreviewStatusView,
+    FunnelEventView,
     OrderCreateView,
     OrderDetailView,
     OrderListView,
@@ -15,6 +16,7 @@ urlpatterns = [
     path("orders/", OrderCreateView.as_view(), name="order-create"),
     path("orders/history/", OrderListView.as_view(), name="order-history"),
     path("orders/free-preview/", FreePreviewStatusView.as_view(), name="free-preview-status"),
+    path("funnel/", FunnelEventView.as_view(), name="funnel-event"),
     path("results/<int:id>/unlock/", ResultUnlockView.as_view(), name="result-unlock"),
     path("orders/<uuid:id>/", OrderDetailView.as_view(), name="order-detail"),
     path("orders/<uuid:id>/review/", OrderReviewView.as_view(), name="order-review"),

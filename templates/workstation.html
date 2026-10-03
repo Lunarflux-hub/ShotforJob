@@ -1367,13 +1367,21 @@
         if (!imageFiles.length) return;
         // Цель Метрики: пользователь загрузил фото (выбором файла или перетаскиванием)
         window.ymReach && window.ymReach("upload_photo", { count: imageFiles.length });
+        // Воронка: формат и размер — чтобы видеть HEIC и тяжёлые снимки с телефонов
+        window.SFJFunnel && window.SFJFunnel.track("photo_selected", {
+            count: imageFiles.length,
+            types: imageFiles.map(f => f.type || "unknown"),
+            sizes_mb: imageFiles.map(f => Math.round(f.size / 104857.6) / 10),
+        });
 
         const tooBig = imageFiles.find(f => f.size > MAX_SIZE_MB * 1024 * 1024);
         if (tooBig) {
+            window.SFJFunnel && window.SFJFunnel.track("photo_rejected", { reason: "too_big" });
             showError(`Файл «${tooBig.name}» больше ${MAX_SIZE_MB} МБ`);
             return;
         }
         if (photos.length + imageFiles.length > MAX_FILES) {
+            window.SFJFunnel && window.SFJFunnel.track("photo_rejected", { reason: "too_many" });
             showError(`Можно загрузить не более ${MAX_FILES} фото`);
             return;
         }
@@ -1408,6 +1416,7 @@
         }
         modal.classList.remove("d-none");
         modal.dataset.currentId = id;
+        window.SFJFunnel && window.SFJFunnel.track("crop_opened", { index: queueIndex, of: queue.length, type: photo.file.type || "unknown" });
 
         if (cropper) {
             cropper.destroy();
@@ -1431,6 +1440,7 @@
                         initCropper();
                     } else {
                         console.warn('Не удалось загрузить изображение для обрезки');
+                        window.SFJFunnel && window.SFJFunnel.track("crop_failed", { reason: "load", type: photo.file.type || "unknown", size_mb: Math.round(photo.file.size / 104857.6) / 10 });
                         advanceQueue();
                     }
                 }, 300);
@@ -1509,7 +1519,10 @@
         }
     }
 
-    skipBtn.addEventListener("click", advanceQueue);
+    skipBtn.addEventListener("click", () => {
+        window.SFJFunnel && window.SFJFunnel.track("crop_skipped", { via: "button" });
+        advanceQueue();
+    });
 
     applyBtn.addEventListener("click", () => {
         if (!cropper) {
@@ -1529,15 +1542,18 @@
             imageSmoothingQuality: "high",
         });
         if (!canvas) {
+            window.SFJFunnel && window.SFJFunnel.track("crop_failed", { reason: "canvas" });
             alert('Не удалось обрезать изображение. Попробуйте снова.');
             return;
         }
 
         canvas.toBlob((blob) => {
             if (!blob) {
+                window.SFJFunnel && window.SFJFunnel.track("crop_failed", { reason: "blob" });
                 advanceQueue();
                 return;
             }
+            window.SFJFunnel && window.SFJFunnel.track("crop_applied", { size_mb: Math.round(blob.size / 104857.6) / 10 });
             const newFile = new File([blob], photo.file.name.replace(/\.[^.]+$/, "") + "_cropped.jpg", {
                 type: "image/jpeg",
             });
@@ -1553,6 +1569,7 @@
 
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
+            window.SFJFunnel && window.SFJFunnel.track("crop_skipped", { via: "backdrop" });
             advanceQueue();
         }
     });
@@ -2079,7 +2096,8 @@
     document.addEventListener("DOMContentLoaded", loadHistoryWheel);
 })();
 </script>
+<script src="{% static 'js/funnel.js' %}?v=20261003"></script>
 <script src="{% static 'js/unlock.js' %}?v=20261001"></script>
 <script src="{% static 'js/upsell.js' %}?v=20261001"></script>
-<script src="{% static 'js/main.js' %}?v=20261001"></script>
+<script src="{% static 'js/main.js' %}?v=20261003"></script>
 {% endblock %}
